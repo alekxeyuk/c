@@ -37,7 +37,10 @@ int getline(char s[], int lim) {
 }
 
 int trail_cleanup(char s[], int lim) {
-	while (lim >= 0 and is_blank(s[--lim])) {}
+	lim--;
+	while (lim >= 0 && is_blank(s[lim])) {
+		lim--;
+	}
 	s[++lim] = '\0';
 	return lim;
 }
