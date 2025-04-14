@@ -46,12 +46,14 @@ int main(void) {
 
 		buff[idx] = (char)ch;
 
-		if (state == INWORD && isspace(ch)) {
-			state = OUTWORD;
-			last_word_end = idx - 1;
+		if (isspace(ch)) {
+		    if (state == INWORD) {
+		        state = OUTWORD;
+		        last_word_end = idx - 1;
+		    }
 		}
-		else if (state == OUTWORD && !isspace(ch)) {
-			state = INWORD;
+		else if (state == OUTWORD) {
+		    state = INWORD;
 		}
 
 		if (idx <= MAX_LINE) {
