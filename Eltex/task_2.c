@@ -112,7 +112,7 @@ static int matrix(void) {
         }
         r--;
         break;
-      case 2:  // ← from right to left bottom row
+      case 2:  // ← from right to left on bottom row
         for (int i = r; i >= l; i--) {
           arr[b][i] = cnt++;
         }
@@ -133,7 +133,7 @@ static int matrix(void) {
 }
 
 int main(void) {
-  int user_input = 0;
+  state user_input = 0;
   menu_print();
 
   if (MY_SCANF("%d", &user_input) == 0) {
