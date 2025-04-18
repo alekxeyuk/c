@@ -27,6 +27,7 @@ static int error_print(const char* const msg) {
   return 1;
 }
 
+// Подсчёт количества цифр в числе.
 static int count_digits(int n) {
   int count = 0;
   while (n != 0) {
@@ -36,6 +37,7 @@ static int count_digits(int n) {
   return count;
 }
 
+// Вывод элементов массива с выравниванием.
 static void array_print(int arr[], int size, int matrix_sup) {
   for (int i = 0; i < size; i++) {
     printf("%*d ", matrix_sup, arr[i]);
@@ -43,6 +45,7 @@ static void array_print(int arr[], int size, int matrix_sup) {
   putchar('\n');
 }
 
+// Вывод матрицы размера size x size, используя функцию array_print.
 static void matrix_print(int arr[], int size) {
   int max_digits = count_digits(size * size);
   for (int i = 0; i < size; i++) {
@@ -50,6 +53,7 @@ static void matrix_print(int arr[], int size) {
   }
 }
 
+// Заполнение квадратной матрицы размером N x N последовательными числами.
 static int square(void) {
   int arr[N][N] = {{0}};
   for (int i = 0; i < N; i++) {
@@ -61,6 +65,7 @@ static int square(void) {
   return 0;
 }
 
+// Вывод массива чисел от 1 до N, вывод измененного массива с инвертированным порядком элементов.
 static int reverse(void) {
   int arr[N] = {0};
 
@@ -78,6 +83,7 @@ static int reverse(void) {
   return 0;
 }
 
+// Заполнение квадратной матрицы N x N так, что матрица разделена на 2 треугольника из 1 и 0.
 static int triangle(void) {
   int arr[N][N] = {{0}};
   for (int i = 0; i < N; i++) {
@@ -89,6 +95,7 @@ static int triangle(void) {
   return 0;
 }
 
+// Заполнение квадратной матрицы N x N так, что элементы матрицы представляют собой спираль от N до N x N
 static int matrix(void) {
   int arr[N][N] = {{0}};
   int cnt = 1;
