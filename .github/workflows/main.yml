@@ -7,37 +7,6 @@ on:
     branches: [ main ]
 
 jobs:
-  build-linux:
-    name: Build Linux Binaries, Package, and Upload
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Create Linux build directory
-        run: mkdir -p build/linux
-
-      - name: Compile all .c files for Linux
-        run: |
-          # Loop through all .c files and compile each one
-          for src in $(find . -type f -name "*.c"); do
-              # Remove "./" prefix and replace directory separators with underscores 
-              exe=$(echo "$src" | sed 's#^\./##; s#[/\\]#_#g; s/\.c$//')
-              echo "Compiling $src to build/linux/${exe}"
-              gcc "$src" -o "build/linux/${exe}" || { echo "Compilation failed for $src"; exit 1; }
-          done
-
-      - name: Create linux.zip archive
-        run: |
-          cd build/linux
-          zip -r ../../linux.zip *
-
-      - name: Upload Linux Archive
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: linux-archive
-          path: linux.zip
-
   build-windows:
     name: Build Windows Binaries, Package, and Upload
     runs-on: ubuntu-latest
