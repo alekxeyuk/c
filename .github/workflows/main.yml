@@ -1,4 +1,4 @@
-name: Build and Package C Programs
+name: Build, Package, and Upload C Programs
 
 on:
   push:
@@ -8,54 +8,65 @@ on:
 
 jobs:
   build-linux:
-    name: Build Linux Binaries and Package
+    name: Build Linux Binaries, Package, and Upload
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up build directory
+      - name: Create Linux build directory
         run: mkdir -p build/linux
 
       - name: Compile all .c files for Linux
         run: |
-          # Find all C source files (change "Eltex" if necessary)
+          # Loop through all .c files and compile each one
           for src in $(find . -type f -name "*.c"); do
-              # remove "./" prefix and directory separators for output executable name
+              # Remove "./" prefix and replace directory separators with underscores 
               exe=$(echo "$src" | sed 's#^\./##; s#[/\\]#_#g; s/\.c$//')
               echo "Compiling $src to build/linux/${exe}"
               gcc "$src" -o "build/linux/${exe}" || { echo "Compilation failed for $src"; exit 1; }
           done
 
-      - name: Archive Linux binaries
+      - name: Create linux.zip archive
         run: |
           cd build/linux
           zip -r ../../linux.zip *
-  
+
+      - name: Upload Linux Archive
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-archive
+          path: linux.zip
+
   build-windows:
-    name: Build Windows Binaries and Package
+    name: Build Windows Binaries, Package, and Upload
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install mingw
+      - name: Install mingw and zip
         run: sudo apt-get update && sudo apt-get install -y mingw-w64 zip
 
-      - name: Set up build directory
+      - name: Create Windows build directory
         run: mkdir -p build/windows
 
       - name: Compile all .c files for Windows
         run: |
-          # Find all C source files (change "Eltex" if necessary)
+          # Loop through all .c files and compile each one for Windows
           for src in $(find . -type f -name "*.c"); do
-              # remove "./" prefix and directory separators for output exe name
               exe=$(echo "$src" | sed 's#^\./##; s#[/\\]#_#g; s/\.c$//').exe
               echo "Compiling $src to build/windows/${exe}"
               x86_64-w64-mingw32-gcc "$src" -o "build/windows/${exe}" || { echo "Compilation failed for $src"; exit 1; }
           done
 
-      - name: Archive Windows binaries
+      - name: Create windows.zip archive
         run: |
           cd build/windows
           zip -r ../../windows.zip *
+
+      - name: Upload Windows Archive
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-archive
+          path: windows.zip
