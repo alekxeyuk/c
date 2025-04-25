@@ -33,7 +33,7 @@ jobs:
           zip -r ../../linux.zip *
 
       - name: Upload Linux Archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: linux-archive
           path: linux.zip
@@ -66,7 +66,7 @@ jobs:
           zip -r ../../windows.zip *
 
       - name: Upload Windows Archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: windows-archive
           path: windows.zip
