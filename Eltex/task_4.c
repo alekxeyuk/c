@@ -105,15 +105,15 @@ static void add_abonent(struct abonent db[]) {
   int status = 1;
 
   printf("Введите имя: ");
-  status &= MY_SCANF(" %10[^\n]", db[i].name, 10);
+  status &= MY_SCANF(" %9[^\n]", db[i].name, 10);
   flush_stdint();
 
   printf("Введите фамилию: ");
-  status &= MY_SCANF(" %10[^\n]", db[i].second_name, 10);
+  status &= MY_SCANF(" %9[^\n]", db[i].second_name, 10);
   flush_stdint();
 
   printf("Введите номер телефона: ");
-  status &= MY_SCANF(" %10[^\n]", db[i].tel, 10);
+  status &= MY_SCANF(" %9[^\n]", db[i].tel, 10);
   flush_stdint();
 
   if (status == 0) {
@@ -146,7 +146,7 @@ void del_abonent(struct abonent db[]) {
 void search_db(struct abonent db[]) {
   char search_buff[10];
   printf("Введите имя для поиска: ");
-  if (MY_SCANF(" %10[^\n]", search_buff, 10) != 1) {
+  if (MY_SCANF(" %9[^\n]", search_buff, 10) != 1) {
     flush_stdint();
     printf("Некорректный ввод\n");
     return;
