@@ -1,6 +1,6 @@
 #include <stdbool.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifndef MAX_STACK_SIZE
 #define MAX_STACK_SIZE 100
@@ -31,6 +31,8 @@ int push(Stack* s, char symbol, int line_number);
 int pop(Stack* s, StackElement* element);
 int peek(Stack* s, StackElement* element);
 
+static void syntax_error(char c_c, unsigned line_c, char c_p, unsigned line_p);
+
 /*
  * Write a program to check a C program for rudimentary syntax
  * errors like unbalanced parentheses, brackets and braces. Don't forget about
@@ -39,6 +41,7 @@ int peek(Stack* s, StackElement* element);
 
 int main(void) {
   Stack stack;
+  StackElement element = {'\0', 0};
   initStack(&stack);
 
   InputChar ch = {.ch_i = 0};
@@ -46,7 +49,10 @@ int main(void) {
   unsigned char escaping = 0;
   enum State state = TEXT;
 
+  unsigned int line_count = 0;
+
   while ((ch.ch_i = getchar()) != EOF) {
+    if (ch.c == '\n') line_count++;
     switch (state) {
       case TEXT:
         if (ch.c == '/' && prev.c == '/') {
@@ -56,19 +62,47 @@ int main(void) {
           state = MULTILINE;
           prev.c = EOF;
         } else {
-          if (prev.c != EOF) putchar(prev.c);
           if (ch.c == '"') {
             state = STRING;
-            putchar(ch.c);
           } else if (ch.c == '\'') {
             state = CHAR;
-            putchar(ch.c);
+          } else {
+            switch (ch.c) {
+              case '(':
+              case '[':
+              case '{':
+                if (push(&stack, ch.c, line_count) == -1) {
+                  printf("Stack overflowed on <%c> at <%u>\n", ch.c,
+                         line_count);
+                }
+                break;
+              case ')':
+              case ']':
+              case '}':
+                if (pop(&stack, &element) == -1) {
+                  printf("Unexpected closing token: <%c> at line number <%u>\n",
+                         ch.c, line_count);
+                  break;
+                }
+                if (ch.c == ')' && element.symbol.c != '(') {
+                  syntax_error(ch.c, line_count, element.symbol.c,
+                               element.line_number);
+                } else if (ch.c == ']' && element.symbol.c != '[') {
+                  syntax_error(ch.c, line_count, element.symbol.c,
+                               element.line_number);
+                } else if (ch.c == '}' && element.symbol.c != '{') {
+                  syntax_error(ch.c, line_count, element.symbol.c,
+                               element.line_number);
+                }
+                break;
+              default:
+                break;
+            }
           }
           prev.c = ch.c;
         }
         break;
       case CHAR:
-        putchar(ch.c);
         if (!escaping && ch.c == '\\') {
           escaping = 1;
         } else {
@@ -81,7 +115,6 @@ int main(void) {
         prev.c = ch.c;
         break;
       case STRING:
-        putchar(ch.c);
         if (!escaping && ch.c == '\\') {
           escaping = 1;
         } else {
@@ -95,7 +128,6 @@ int main(void) {
         break;
       case LINE:
         if (ch.c == '\n') {
-          putchar(ch.c);
           state = TEXT;
           prev.c = EOF;
         }
@@ -111,10 +143,9 @@ int main(void) {
     }
   }
 
-  if (state == MULTILINE && prev.c != EOF) {
-    putchar('\n');
-  } else if (prev.c != EOF) {
-    putchar(prev.c);
+  if (pop(&stack, &element) != -1) {
+    printf("Tokens left in stack: <%c> at line number <%u>\n", element.symbol.c,
+           element.line_number);
   }
 
   return 0;
@@ -148,7 +179,7 @@ int pop(Stack* s, StackElement* element) {
 
   *element = s->data[s->top];
   --s->top;
-  
+
   return 0;
 }
 
@@ -160,4 +191,9 @@ int peek(Stack* s, StackElement* element) {
   *element = s->data[s->top];
 
   return 0;
+}
+
+static void syntax_error(char c_c, unsigned line_c, char c_p, unsigned line_p) {
+  printf("Unbalanced closing token: <%c> at <%u> | <%c> at <%u>\n", c_c, line_c,
+         c_p, line_p);
 }
