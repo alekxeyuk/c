@@ -143,7 +143,7 @@ int main(void) {
     }
   }
 
-  if (pop(&stack, &element) != -1) {
+while (pop(&stack, &element) != -1) {
     printf("Tokens left in stack: <%c> at line number <%u>\n", element.symbol.c,
            element.line_number);
   }
