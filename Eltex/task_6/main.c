@@ -3,6 +3,7 @@
 
 #include "abonent.h"
 #include "list.h"
+#include "utils.h"
 
 typedef enum { ADD = 1, DELETE, SEARCH, PRINT, EXIT } state;
 

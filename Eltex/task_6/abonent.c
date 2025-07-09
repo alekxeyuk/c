@@ -1,4 +1,5 @@
 #include "abonent.h"
+#include "utils.h"
 
 void appendAbonent(List* lst, Abonent d) {
   Node* ptr = createNode(d);
@@ -108,8 +109,3 @@ void search_db(List* lst) {
 }
 
 void print_db(List* lst) { printList(lst); }
-
-void flush_stdint(void) {
-  int c;
-  while ((c = getchar()) != '\n' && c != EOF);
-}

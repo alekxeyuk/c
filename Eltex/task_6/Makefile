@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -g
 
 # Source files
-SRCS = abonent.c list.c main.c
+SRCS = abonent.c list.c utils.c main.c
 
 # Object files
 OBJS = $(SRCS:.c=.o)

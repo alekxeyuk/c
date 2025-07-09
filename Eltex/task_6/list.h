@@ -35,6 +35,4 @@ void printAbonent(Abonent*);
 Node* findNext(Node*, const char*);
 Node* searchList(List*, const char*);
 
-int strncmp(const char*, const char*, size_t n);
-
 #endif  // LIST_H_

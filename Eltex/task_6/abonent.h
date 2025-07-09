@@ -14,5 +14,4 @@ void del_abonent(List*);
 void search_db(List*);
 void print_db(List*);
 
-void flush_stdint(void);
 #endif  // ABONENT_H_
