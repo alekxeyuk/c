@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include "utils.h"
 
+#ifdef _WIN32
+#define MY_SCANF(format, ...) scanf_s(format, __VA_ARGS__, (size_t)sizeof(__VA_ARGS__))
+#else
+#define MY_SCANF(format, ...) scanf(format, __VA_ARGS__)
+#endif
+
 int strncmp(const char* ptr1, const char* ptr2, size_t n) {
   char* f = (char*)ptr1;
   char* s = (char*)ptr2;
