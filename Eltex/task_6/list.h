@@ -21,7 +21,6 @@ typedef struct Node {
 typedef struct {
   Node* head;
   Node* tail;
-  // unsigned int size;
 } List;
 
 Node* createNode(Abonent);
