@@ -25,6 +25,10 @@ int main(void) {
 
   // Read backwards
   fd = open(pathname, O_RDONLY, mode);
+  if (fd == -1) {
+    perror("Was not able to open a file");
+    return EXIT_FAILURE;
+  }
   char r_buff[1] = {0};
   for (off_t pos = lseek(fd, 0, SEEK_END); pos >= 0; --pos) {
     off_t cur_pos = lseek(fd, pos, SEEK_SET);
