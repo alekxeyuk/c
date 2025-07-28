@@ -66,15 +66,23 @@ void init_panel(PANEL* p, bool active, int cols, int y, int x) {
   p->cols = cols;
   p->files = NULL;
 }
+bool enter_folder(PANEL* a_pn, const char* path) {
+  int st = chdir(path);
+  if (st == -1) {
+    perror("Failed to enter folder");
+    return false;
+  }
+  getcwd(a_pn->cwd, sizeof(a_pn->cwd));
+  return true;
+}
 // Scan files on path and populate panel FENTRY array, sorted
-bool read_folder(PANEL* a_pn, const char* path) {
+bool read_folder(PANEL* a_pn) {
   struct stat sb;
   struct dirent** namelist;
-  int list_size = scandir(path, &namelist, NULL, alphasort);
+
+  int list_size = scandir(".", &namelist, NULL, alphasort);
   if (list_size == -1) {
     return false;
-    /*perror("scandir");
-    exit(EXIT_FAILURE);*/
   }
 
   a_pn->nfiles = (size_t)list_size;
@@ -87,30 +95,47 @@ bool read_folder(PANEL* a_pn, const char* path) {
     return false;
   }
 
+  int j = 0;
   for (int i = 0; i < list_size; i++) {
+    if (strcmp(namelist[i]->d_name, ".") == 0) {
+      free(namelist[i]);
+      continue;
+    }
+
     stat(namelist[i]->d_name, &sb);
+    strncpy(a_pn->files[j].name, namelist[i]->d_name,
+            sizeof(a_pn->files[j].name) - 1);
+    a_pn->files[j].name[sizeof(a_pn->files[j].name) - 1] = '\0';
+    strftime(a_pn->files[j].mtime_str, sizeof(a_pn->files[j].mtime_str),
+             "%b %e %R", localtime(&sb.st_mtim.tv_sec));
+    a_pn->files[j].is_dir = S_ISDIR(sb.st_mode);
+    a_pn->files[j].size = (intmax_t)sb.st_size;
 
-    strncpy(a_pn->files[i].name, namelist[i]->d_name,
-            sizeof(a_pn->files[i].name) - 1);
-    a_pn->files[i].name[sizeof(a_pn->files[i].name) - 1] = '\0';  // Save name
-    strftime(a_pn->files[i].mtime_str, sizeof(a_pn->files[i].mtime_str),
-             "%b %e %R", localtime(&sb.st_mtim.tv_sec));  // Save mtime
-    a_pn->files[i].is_dir = S_ISDIR(sb.st_mode);          // Save file type
-    a_pn->files[i].size = (intmax_t)sb.st_size;           // Save file size
-
+    j++;
     free(namelist[i]);
   }
   free(namelist);
 
+  a_pn->nfiles = (size_t)j;
+
   // Two category: file and directory
   qsort(a_pn->files, a_pn->nfiles, sizeof(FENTRY), sort_by_type);
+  a_pn->selected = 0;
   return true;
 }
 
 void draw_file_list(PANEL* a_pn) {
+  WINDOW* win = a_pn->win;
+  const int max_len = a_pn->cols - (MTIMMX + SMX + 4);
+
   int color_scheme = CS_FILE;
   for (size_t i = 0; i < a_pn->nfiles; i++) {
-    if (a_pn->files[i].is_dir) {
+    const FENTRY* file = &a_pn->files[i];
+    const int name_len = (int)strlen(file->name);
+    const int l = max_len / 2;
+    const int r = max_len / 2 + max_len % 2;
+
+    if (file->is_dir) {
       color_scheme = CS_DIR;
     } else {
       color_scheme = CS_FILE;
@@ -118,18 +143,23 @@ void draw_file_list(PANEL* a_pn) {
     if (i == a_pn->selected && a_pn->active) {
       color_scheme = CS_SELECTED;
     }
-    wattron(a_pn->win, COLOR_PAIR(color_scheme));
-    mvwprintw(a_pn->win, (int)i + 1, 1, "%-*s", a_pn->cols - (MTIMMX + SMX + 3),
-              a_pn->files[i].name);
-    mvwprintw(a_pn->win, (int)i + 1, a_pn->cols - MTIMMX - SMX - 1, "%7jd",
-              a_pn->files[i].size);
-    mvwprintw(a_pn->win, (int)i + 1, a_pn->cols - MTIMMX, "%s",
-              a_pn->files[i].mtime_str);
-    wattroff(a_pn->win, COLOR_PAIR(color_scheme));
+    wattron(win, COLOR_PAIR(color_scheme));
+    if (max_len < 3) {
+      NULL;
+    } else if (name_len > max_len + 1) {
+      mvwprintw(win, (int)i + 1, 1, "%.*s~%s", l, file->name,
+                file->name + name_len - r);
+    } else {
+      mvwprintw(a_pn->win, (int)i + 1, 1, "%-*s",
+                a_pn->cols - (MTIMMX + SMX + 3), a_pn->files[i].name);
+    }
+    mvwprintw(win, (int)i + 1, a_pn->cols - MTIMMX - SMX - 1, "%7jd",
+              file->size);
+    mvwprintw(win, (int)i + 1, a_pn->cols - MTIMMX, "%s", file->mtime_str);
+    wattroff(win, COLOR_PAIR(color_scheme));
   }
-  mvwvline(a_pn->win, 1, a_pn->cols - MTIMMX - SMX - 1 - 1, ACS_VLINE,
-           LINES - 2);
-  mvwvline(a_pn->win, 1, a_pn->cols - MTIMMX - 1, ACS_VLINE, LINES - 2);
+  mvwvline(win, 1, a_pn->cols - MTIMMX - SMX - 1 - 1, ACS_VLINE, LINES - 2);
+  mvwvline(win, 1, a_pn->cols - MTIMMX - 1, ACS_VLINE, LINES - 2);
 }
 // Static Getter/Setter for curent user's PWD
 const char* stored_user_pwd(void* ptr) {
@@ -178,6 +208,13 @@ void render_panels(PANEL panels[2]) {
   }
 }
 
+void sel_dec(size_t* sel) {
+  if (*sel > 0) (*sel)--;
+}
+void sel_inc(size_t* sel, size_t max) {
+  if (*sel < max) (*sel)++;
+}
+
 int main(void) {
   setlocale(LC_ALL, "C.utf8");
 
@@ -213,18 +250,15 @@ int main(void) {
   PANEL panels[2];
   init_panel(&panels[0], true, left_w, 0, 0);
   init_panel(&panels[1], false, right_w, 0, left_w);
-  bool read_st = read_folder(&panels[0], panels[0].cwd);
-  read_st &= read_folder(&panels[1], panels[1].cwd);
+  bool read_st = read_folder(&panels[0]);
+  read_st &= read_folder(&panels[1]);
   if (!read_st) {
     perror("Was not able to initialize panels with CWD of current user");
     exit(EXIT_FAILURE);
   }
 
-  render_panels(panels);
-  doupdate();
-
-  int ch;
-  while ((ch = wgetch(stdscr)) != 'q') {
+  int ch = 0;
+  do {
     if (ch == KEY_RESIZE) {
       left_w = COLS / 2;
       right_w = COLS - left_w;
@@ -237,17 +271,38 @@ int main(void) {
       mvwin(panels[1].win, 0, left_w);
       wnoutrefresh(stdscr);
     } else if (ch == KEY_UP) {
-      panels[selected].selected++;
+      sel_dec(&panels[selected].selected);
     } else if (ch == KEY_DOWN) {
-      panels[selected].selected--;
+      sel_inc(&panels[selected].selected, panels[selected].nfiles - 1);
+    } else if (ch == '\n') {
+      size_t sel_f_id = panels[selected].selected;
+      FENTRY* sel_file = &panels[selected].files[sel_f_id];
+      if (sel_file->is_dir) {
+        read_st &= enter_folder(&panels[selected], sel_file->name);
+        if (!read_st) {
+          perror("Was not able to change CWD to a new folder");
+          exit(EXIT_FAILURE);
+        }
+        read_st &= read_folder(&panels[selected]);
+        if (!read_st) {
+          perror("Was not able to initialize panels with CWD of current user");
+          exit(EXIT_FAILURE);
+        }
+        werase(panels[selected].win);
+      }
     } else if (ch == '\t') {
       panels[selected].active = false;
       selected = selected ? 0 : 1;
       panels[selected].active = true;
+      read_st &= enter_folder(&panels[selected], panels[selected].cwd);
+      if (!read_st) {
+        perror("Was not able to change CWD to a new folder");
+        exit(EXIT_FAILURE);
+      }
     }
     render_panels(panels);
     doupdate();
-  }
+  } while ((ch = wgetch(stdscr)) != 'q');
 
   free(panels[0].files);
   free(panels[1].files);
