@@ -22,18 +22,18 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(OBJS)
-        $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Compile the source files into object files
 %.o: %.c
-        $(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 # Clean up the object files and executable
 clean:
-        rm -f $(OBJS) $(TARGET) output.txt
+	rm -f $(OBJS) $(TARGET) output.txt
 
 # Clean up everything, including the Makefile
 distclean: clean
-        rm -f Makefile
+	rm -f Makefile
 
 .PHONY: all clean distclean
