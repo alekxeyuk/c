@@ -72,6 +72,7 @@ bool read_folder(PANEL* a_pn) {
   a_pn->nfiles = (size_t)j;
   qsort(a_pn->files, a_pn->nfiles, sizeof(FENTRY), sort_by_type);
   a_pn->selected = 0;
+  a_pn->topline = 0;
   return true;
 }
 
@@ -80,7 +81,8 @@ void draw_file_list(PANEL* a_pn) {
   const int max_len = a_pn->cols - (MTIMMX + SMX + 4);
 
   int color_scheme = CS_FILE;
-  for (size_t i = 0; i < a_pn->nfiles; i++) {
+  int j = 1;
+  for (size_t i = a_pn->topline; i < a_pn->nfiles; i++) {
     const FENTRY* file = &a_pn->files[i];
     const int name_len = (int)strlen(file->name);
     const int l = max_len / 2;
@@ -98,16 +100,16 @@ void draw_file_list(PANEL* a_pn) {
     if (max_len < 3) {
       NULL;
     } else if (name_len > max_len + 1) {
-      mvwprintw(win, (int)i + 1, 1, "%.*s~%s", l, file->name,
-                file->name + name_len - r);
+      mvwprintw(win, j, 1, "%.*s~%s", l, file->name, file->name + name_len - r);
     } else {
-      mvwprintw(a_pn->win, (int)i + 1, 1, "%-*s",
-                a_pn->cols - (MTIMMX + SMX + 3), a_pn->files[i].name);
+      mvwprintw(a_pn->win, j, 1, "%-*s", a_pn->cols - (MTIMMX + SMX + 3),
+                a_pn->files[i].name);
     }
-    mvwprintw(win, (int)i + 1, a_pn->cols - MTIMMX - SMX - 1, "%7jd",
-              file->size);
-    mvwprintw(win, (int)i + 1, a_pn->cols - MTIMMX, "%s", file->mtime_str);
+    mvwprintw(win, j, a_pn->cols - MTIMMX - SMX - 1, "%7jd", file->size);
+    mvwprintw(win, j, a_pn->cols - MTIMMX, "%s", file->mtime_str);
     wattroff(win, COLOR_PAIR(color_scheme));
+    if (j >= LINES - 2) break;
+    j++;
   }
   mvwvline(win, 1, a_pn->cols - MTIMMX - SMX - 1 - 1, ACS_VLINE, LINES - 2);
   mvwvline(win, 1, a_pn->cols - MTIMMX - 1, ACS_VLINE, LINES - 2);

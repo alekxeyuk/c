@@ -61,8 +61,14 @@ int main(void) {
       wnoutrefresh(stdscr);
     } else if (ch == KEY_UP) {
       sel_dec(&panels[selected].selected);
+      if (panels[selected].selected < panels[selected].topline) {
+        panels[selected].topline--;
+      }
     } else if (ch == KEY_DOWN) {
       sel_inc(&panels[selected].selected, panels[selected].nfiles - 1);
+      if (panels[selected].selected >= panels[selected].topline + (size_t)LINES - 2) {
+        panels[selected].topline++;
+      }
     } else if (ch == '\n') {
       size_t sel_f_id = panels[selected].selected;
       FENTRY* sel_file = &panels[selected].files[sel_f_id];
