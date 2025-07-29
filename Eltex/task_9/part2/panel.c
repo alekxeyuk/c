@@ -78,7 +78,8 @@ bool read_folder(PANEL* a_pn) {
 
 void draw_file_list(PANEL* a_pn) {
   WINDOW* win = a_pn->win;
-  const int max_len = a_pn->cols - (MTIMMX + SMX + 4);
+  const int cols = a_pn->cols;
+  const int max_len = cols - (MTIMMX + SMX + 4);
 
   int color_scheme = CS_FILE;
   int j = 1;
@@ -102,17 +103,16 @@ void draw_file_list(PANEL* a_pn) {
     } else if (name_len > max_len + 1) {
       mvwprintw(win, j, 1, "%.*s~%s", l, file->name, file->name + name_len - r);
     } else {
-      mvwprintw(a_pn->win, j, 1, "%-*s", a_pn->cols - (MTIMMX + SMX + 3),
-                a_pn->files[i].name);
+      mvwprintw(a_pn->win, j, 1, "%-*s", cols - (MTIMMX + SMX + 3), file->name);
     }
-    mvwprintw(win, j, a_pn->cols - MTIMMX - SMX - 1, "%7jd", file->size);
-    mvwprintw(win, j, a_pn->cols - MTIMMX, "%s", file->mtime_str);
+    mvwprintw(win, j, cols - MTIMMX - SMX - 1, "%7jd", file->size);
+    mvwprintw(win, j, cols - MTIMMX, "%s", file->mtime_str);
     wattroff(win, COLOR_PAIR(color_scheme));
     if (j >= LINES - 2) break;
     j++;
   }
-  mvwvline(win, 1, a_pn->cols - MTIMMX - SMX - 1 - 1, ACS_VLINE, LINES - 2);
-  mvwvline(win, 1, a_pn->cols - MTIMMX - 1, ACS_VLINE, LINES - 2);
+  mvwvline(win, 1, cols - MTIMMX - SMX - 1 - 1, ACS_VLINE, LINES - 2);
+  mvwvline(win, 1, cols - MTIMMX - 1, ACS_VLINE, LINES - 2);
 }
 
 void draw_top_bar(PANEL* a_pn) {
