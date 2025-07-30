@@ -22,7 +22,7 @@ int main(void) {
 
   do {
     menu_print();
-	int r = scanf("%d", (int*)&user_input);
+    int r = scanf("%d", (int*)&user_input);
     if (r == 0) {
       flush_stdint();
       printf("Некорректный ввод\n");
