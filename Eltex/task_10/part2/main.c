@@ -20,21 +20,40 @@ int main(void) {
       exit(EXIT_FAILURE);
       break;
     case 0:
-      // Child
-      printf("I am a child with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
+      // Child 1
+      printf("I am a child-1 with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
       exit(EXIT_SUCCESS);
       break;
     default:
       // Parent
       cpid2 = fork();
-      printf("I am a parent with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
-      w = waitpid(cpid1, &wstatus, 0);
-      if (w == -1) {
-        perror("waitpid failed");
-        exit(EXIT_FAILURE);
-      }
-      printf("Child process ended with status = %d\n", WEXITSTATUS(wstatus));
-      break;
+      switch(cpid2) {
+        case -1:
+          // Error
+          perror("fork failed");
+          exit(EXIT_FAILURE);
+          break;
+        case 0:
+          // Child 2
+          printf("I am a child-2 with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
+          exit(EXIT_SUCCESS);
+          break;
+        default:
+          printf("I am a parent with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
+          w = waitpid(cpid1, &wstatus, 0);
+          if (w == -1) {
+            perror("waitpid failed");
+            exit(EXIT_FAILURE);
+          }
+          printf("Child-1 process ended with status = %d\n", WEXITSTATUS(wstatus));
+          w = waitpid(cpid2, &wstatus, 0);
+          if (w == -1) {
+            perror("waitpid failed");
+            exit(EXIT_FAILURE);
+          }
+          printf("Child-2 process ended with status = %d\n", WEXITSTATUS(wstatus));
+          break;
+     }
   }
 
   return EXIT_SUCCESS;
