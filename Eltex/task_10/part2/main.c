@@ -10,10 +10,10 @@ int main(void) {
   setlocale(LC_ALL, "C.utf8");
 
   int wstatus;
-  pid_t cpid, w;
+  pid_t cpid1, cpid2, w;
 
-  cpid = fork();
-  switch(cpid) {
+  cpid1 = fork();
+  switch(cpid1) {
     case -1:
       // Error
       perror("fork failed");
@@ -26,8 +26,9 @@ int main(void) {
       break;
     default:
       // Parent
+      cpid2 = fork();
       printf("I am a parent with pid = %jd and ppid = %jd\n", (intmax_t) getpid(), (intmax_t) getppid());
-      w = waitpid(cpid, &wstatus, 0);
+      w = waitpid(cpid1, &wstatus, 0);
       if (w == -1) {
         perror("waitpid failed");
         exit(EXIT_FAILURE);
