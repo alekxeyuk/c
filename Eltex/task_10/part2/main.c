@@ -21,7 +21,6 @@ int main(void) {
       exit(EXIT_FAILURE);
     case 0:
       // Child 1
-
       cpid3 = fork();
       switch(cpid3) {
         case -1:
@@ -59,7 +58,6 @@ int main(void) {
               exit(EXIT_SUCCESS);
           }
       }
-      break;
     default:
       // Parent
       cpid2 = fork();
@@ -104,7 +102,6 @@ int main(void) {
             exit(EXIT_FAILURE);
           }
           printf("Child-2 process ended with status = %d\n", WEXITSTATUS(wstatus));
-          break;
      }
   }
 
