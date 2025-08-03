@@ -30,6 +30,8 @@ int main(void) {
 
     int subs_n = split_str(input, subs, "|");
 
+    if (subs_n == 0) continue;
+
     process_command(subs);
 
     int prev_fd = STDIN_FILENO;
