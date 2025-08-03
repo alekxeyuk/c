@@ -8,7 +8,7 @@
 #ifndef $($baseName.ToUpper())_H_
 #define $($baseName.ToUpper())_H_
 
-#endif // $($baseName.ToUpper())_H_
+#endif  // $($baseName.ToUpper())_H_
 "@
     Set-Content -Path $headerFile -Value $headerContent
 
