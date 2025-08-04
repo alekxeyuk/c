@@ -51,7 +51,10 @@ int main(void) {
 
   printf("I will send SIGUSR1 signals to the PID you provided\n");
   while (true) {
-    kill(p, SIGUSR1);
+    if (kill(p, SIGUSR1) < 0) {
+      perror("kill failed");
+      exit(EXIT_FAILURE);
+    }
     usleep(10000);
   }
 
