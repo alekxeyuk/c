@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshado
 
 # Linker flags
 LDFLAGS = 
-LDLIBS  = -lrt
+LDLIBS  = 
 
 # Include directories
 INCLUDES = -I.
