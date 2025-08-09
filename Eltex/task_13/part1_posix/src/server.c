@@ -1,9 +1,10 @@
+#include <fcntl.h>
 #include <locale.h>
+#include <mqueue.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <sys/stat.h>
-#include <mqueue.h>
+
 #include "common.h"
 
 int main(void) {
@@ -21,20 +22,24 @@ int main(void) {
   attr.mq_curmsgs = 0;
 
   // Create the server-to-client message queue
-  if ((s2c_mq = mq_open(S2C_MQ_NAME, O_WRONLY | O_CREAT, S_IRWXU, &attr)) == (mqd_t)-1) {
+  if ((s2c_mq = mq_open(S2C_MQ_NAME, O_WRONLY | O_CREAT, S_IRWXU, &attr)) ==
+      (mqd_t)-1) {
     perror("Server: mq_open S2C_MQ failed");
     exit(EXIT_FAILURE);
   }
-  printf("Server: Message queue %s created successfully [%d].\n", S2C_MQ_NAME, (int)s2c_mq);
+  printf("Server: Message queue %s created successfully [%d].\n", S2C_MQ_NAME,
+         (int)s2c_mq);
 
   // Create the client-to-server message queue
-  if ((c2s_mq = mq_open(C2S_MQ_NAME, O_RDONLY | O_CREAT, S_IRWXU, &attr)) == (mqd_t)-1) {
+  if ((c2s_mq = mq_open(C2S_MQ_NAME, O_RDONLY | O_CREAT, S_IRWXU, &attr)) ==
+      (mqd_t)-1) {
     perror("Server: mq_open C2S_MQ failed");
     mq_close(s2c_mq);
     mq_unlink(S2C_MQ_NAME);
     exit(EXIT_FAILURE);
   }
-  printf("Server: Message queue %s created successfully [%d].\n", C2S_MQ_NAME, (int)c2s_mq);
+  printf("Server: Message queue %s created successfully [%d].\n", C2S_MQ_NAME,
+         (int)c2s_mq);
 
   // Send a message to the client
   if (mq_send(s2c_mq, msg, MAX_MSG_SIZE, 0) == -1) {
@@ -51,7 +56,7 @@ int main(void) {
   buffer[msg_size] = '\0';
   printf("Server: Received message from client: %s\n", buffer);
 
-  cleanup:
+cleanup:
   mq_close(s2c_mq);
   mq_close(c2s_mq);
   mq_unlink(S2C_MQ_NAME);

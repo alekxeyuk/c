@@ -5,6 +5,6 @@
 #define C2S_MQ_NAME "/client_to_server"
 
 #define MAX_MSG_COUNT 10
-#define MAX_MSG_SIZE  64
+#define MAX_MSG_SIZE 64
 
 #endif  // COMMON_H_
