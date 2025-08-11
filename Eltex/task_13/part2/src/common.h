@@ -1,6 +1,7 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#define MAX_MESSAGES 100
 #define MAX_USERNAME_SIZE 16
 #define MAX_MSG_SIZE 64
 #define MAX_USERS 16
@@ -8,10 +9,12 @@
 #define SERVER_MTYPE 1
 
 typedef enum {
-  JOIN = 1,
-  LEAVE,
-  MESSAGE,
-  LIST_USERS,
+  MNOOP = -1,
+  MJOIN = 1,
+  MLEAVE,
+  MMESSAGE,
+  MLIST_USERS,
+  MSTOP,
 } msgtype;
 
 typedef struct {

@@ -17,36 +17,40 @@
 
 static WINDOW *log_win, *users_win, *input_win;
 extern char input_buffer[MAX_MSG_SIZE];
+extern char messages[MAX_MESSAGES][MAX_MSG_SIZE];
+extern char users[MAX_USERS][MAX_USERNAME_SIZE];
+extern int msg_count;
+extern int user_count;
 extern int running;
 static pthread_mutex_t ui_mut = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ui_update = PTHREAD_COND_INITIALIZER;
-static update_type_t update_type = NOOP;
+static pthread_cond_t op_complete = PTHREAD_COND_INITIALIZER;
+static update_type_t update_type = UNOOP;
 
-static void setup_windows() {
+static pthread_mutex_t *log_mut = NULL;
+static pthread_mutex_t *users_mut = NULL;
+
+static void setup_windows(void) {
   int max_y, max_x;
   getmaxyx(stdscr, max_y, max_x);
 
-  // Calculate dimensions
   int input_height = 3;
   int users_width = 16;
   int log_height = max_y - input_height;
   int log_width = max_x - users_width;
 
-  // Create windows
   log_win = newwin(log_height, log_width, 0, 0);
   users_win = newwin(log_height, users_width, 0, log_width);
   input_win = newwin(input_height, max_x, log_height, 0);
 
-  // Enable scrolling for message window
   scrollok(log_win, TRUE);
 }
 
 // Draw message list
-static void draw_messages() {
+static void draw_messages(void) {
   werase(log_win);
   box(log_win, 0, 0);
 
-  /*
   int max_y, max_x;
   getmaxyx(log_win, max_y, max_x);
 
@@ -55,40 +59,39 @@ static void draw_messages() {
   if (start < 0) start = 0;
 
   for (int i = start; i < msg_count; i++) {
-      mvwprintw(log_win, i - start + 1, 1, "%s", messages[i]);
+    mvwprintw(log_win, i - start + 1, 1, "%.*s", max_x, messages[i]);
   }
-  */
+
   wnoutrefresh(log_win);
 }
 
 // Draw user list
-static void draw_users() {
+static void draw_users(void) {
   werase(users_win);
   box(users_win, 0, 0);
-  mvwprintw(users_win, 0, 1, " Users");
-  /*
+  mvwprintw(users_win, 0, 1, " Users ");
+
   for (int i = 0; i < user_count; i++) {
-      mvwprintw(users_win, i + 1, 1, "%s", users[i]);
+    mvwprintw(users_win, i + 1, 1, "%s", users[i]);
   }
-  */
+
   wnoutrefresh(users_win);
 }
 
 // Draw input area
-static void draw_input() {
+static void draw_input(void) {
   werase(input_win);
   box(input_win, 0, 0);
+  mvwprintw(input_win, 0, 1, " Ctrl+Enter to send ");
   mvwprintw(input_win, 1, 1, "> %s", input_buffer);
   wnoutrefresh(input_win);
 }
 
 // Handle terminal resize
-static void handle_resize() {
-  // pthread_mutex_lock(&ui_resize_mut);
+static void handle_resize(void) {
   int max_y, max_x;
   getmaxyx(stdscr, max_y, max_x);
 
-  // Calculate dimensions
   int input_height = 3;
   int users_width = 16;
   int log_height = max_y - input_height;
@@ -106,11 +109,11 @@ static void handle_resize() {
   draw_messages();
   draw_users();
   draw_input();
-  //  pthread_mutex_unlock(&ui_resize_mut);
 }
 
 // UI thread main function
 static void *ui_thread_func(void *arg) {
+  (void)arg;
   if (!initscr()) {
     perror("initscr failed!");
     return NULL;
@@ -131,31 +134,35 @@ static void *ui_thread_func(void *arg) {
   struct winsize ws;
   while (running) {
     pthread_mutex_lock(&ui_mut);
-    while (update_type == NOOP) {
+    while (update_type == UNOOP) {
       pthread_cond_wait(&ui_update, &ui_mut);
     }
     switch (update_type) {
-      case RESIZE:
+      case URESIZE:
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
         resizeterm(ws.ws_row, ws.ws_col);
         handle_resize();
         break;
-      case LOG:
+      case ULOG:
+        draw_messages();
         break;
-      case USER:
+      case UUSER:
+        draw_users();
         break;
-      case INPUT:
+      case UINPUT:
         draw_input();
         break;
-      case STOP:
+      case USTOP:
+        break;
+      case UNOOP:
         break;
     }
-    update_type = NOOP;
+    update_type = UNOOP;
     doupdate();
     pthread_mutex_unlock(&ui_mut);
+    pthread_cond_signal(&op_complete);
   }
 
-  // Cleanup
   delwin(log_win);
   delwin(users_win);
   delwin(input_win);
@@ -167,16 +174,16 @@ static void *ui_thread_func(void *arg) {
   return NULL;
 }
 
-int start_ui_thread(pthread_t *ui_thread) { return pthread_create(ui_thread, NULL, ui_thread_func, NULL); }
+int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_t *u_mut) {
+  log_mut = l_mut;
+  users_mut = u_mut;
+  return pthread_create(ui_thread, NULL, ui_thread_func, NULL);
+}
 
-/*
- * Update the UI with a specific type of update.
- * This function locks the mutex, sets the update type, signals the condition variable,
- * and then unlocks the mutex.
- */
 void update_ui(update_type_t type) {
   pthread_mutex_lock(&ui_mut);
   update_type = type;
   pthread_cond_signal(&ui_update);
+  pthread_cond_wait(&op_complete, &ui_mut);
   pthread_mutex_unlock(&ui_mut);
 }

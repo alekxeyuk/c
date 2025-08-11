@@ -6,14 +6,14 @@
 #include "common.h"
 
 typedef enum {
-  NOOP = -1,
-  RESIZE = 1,
-  LOG,
-  USER,
-  INPUT,
-  STOP,
+  UNOOP = -1,
+  URESIZE = 1,
+  ULOG,
+  UUSER,
+  UINPUT,
+  USTOP,
 } update_type_t;
 
-int start_ui_thread(pthread_t *ui_thread);
+int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_t *u_mut);
 void update_ui(update_type_t type);
 #endif  // UI_H_
