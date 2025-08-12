@@ -13,11 +13,12 @@
 
 #include "client.h"
 #include "common.h"
+#include "log.h"
 #include "ui.h"
 
 char* name;
 char input_buffer[MAX_MSG_SIZE];
-char messages[MAX_MESSAGES][MAX_MSG_SIZE];
+chatlog_t chatlog = {0};
 char users[MAX_USERS][MAX_USERNAME_SIZE];
 int msg_count = 0;
 int user_count = 0;
@@ -33,14 +34,14 @@ static pthread_t pub_thread;
 
 static void sig_win(int arg) {
   (void)arg;
-  update_ui(URESIZE);
+  update_ui(URESIZE, 1);
 }
 
 static void stop(int signum) {
   (void)signum;
   running = 0;
   printf("Stopping UI thread...\n");
-  update_ui(USTOP);
+  update_ui(USTOP, 0);
   pthread_join(ui_thread, NULL);
   printf("UI thread stopped.\n");
 
@@ -58,6 +59,7 @@ static void stop(int signum) {
 
 static void process_input(int ch) {
   switch (ch) {
+    case '\t':
     case '\n':
       if (input_pos > 0) {
         send_message(MMESSAGE);
@@ -66,19 +68,19 @@ static void process_input(int ch) {
         input_pos = 0;
         pthread_mutex_unlock(&buffer_mut);
       }
-      update_ui(UINPUT);
+      update_ui(UINPUT, 1);
       break;
     case 127:
       if (input_pos > 0) {
         input_buffer[--input_pos] = '\0';
-        update_ui(UINPUT);
+        update_ui(UINPUT, 1);
       }
       break;
     default:
       if (isprint(ch) && input_pos < MAX_MSG_SIZE - 1) {
         input_buffer[input_pos++] = (char)ch;
         input_buffer[input_pos] = '\0';
-        update_ui(UINPUT);
+        update_ui(UINPUT, 1);
       }
   }
 }
@@ -96,6 +98,8 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Failed to initialize message queue.\n");
     exit(EXIT_FAILURE);
   }
+
+  init_chatlog(&chatlog);
 
   start_ui_thread(&ui_thread, NULL, NULL);
   start_publisher_thread(&pub_thread);

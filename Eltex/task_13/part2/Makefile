@@ -14,8 +14,8 @@ SRC_DIR = src
 BIN_DIR = bin
 
 # Source files
-SERVER_SRC = server.c
-CLIENT_SRC = main.c client.c ui.c
+SERVER_SRC = server.c log.c
+CLIENT_SRC = main.c client.c ui.c log.c
 
 # Object files
 SERVER_OBJS    = $(addprefix $(SRC_DIR)/, $(SERVER_SRC:.c=.o))

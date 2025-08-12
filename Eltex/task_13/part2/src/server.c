@@ -9,10 +9,12 @@
 #include <sys/types.h>
 
 #include "common.h"
+#include "log.h"
 
 static int mqid = -1;
-static user users[MAX_USERS] = {0};
+static user_t users[MAX_USERS] = {0};
 static int nusers = 0;
+static chatlog_t chatlog = {0};
 static size_t client_length = sizeof(clientmsg) - sizeof(long);
 static size_t server_length = sizeof(servermsg) - sizeof(long);
 
@@ -60,7 +62,22 @@ static void send_user_list(long pid) {
   }
 }
 
-static user *find_user_by_pid(long pid) {
+static void send_chat_log(long pid) {
+  servermsg m;
+  m.type = MMESSAGE;
+  m.mtype = pid;
+
+  for (int i = 0; i < chatlog.count; i++) {
+    const chatmsg *msg = get_message(&chatlog, i);
+    snprintf(m.data.chat.username, MAX_USERNAME_SIZE, "%.*s", MAX_USERNAME_SIZE - 1, msg->username);
+    snprintf(m.data.chat.msgtext, MAX_MSG_SIZE, "%.*s", MAX_MSG_SIZE - 1, msg->msgtext);
+    if (msgsnd(mqid, &m, server_length, 0) == -1) {
+      perror("Server: msgsnd failed.");
+    }
+  }
+}
+
+static user_t *find_user_by_pid(long pid) {
   for (int i = 0; i < nusers; i++) {
     if (users[i].pid == pid) {
       return &users[i];
@@ -74,7 +91,7 @@ int main(int argc, char *argv[]) {
 
   key_t key;
   clientmsg message;
-  user *userp = NULL;
+  user_t *userp = NULL;
 
   if (argc != 2) {
     fprintf(stderr, "Usage: %s <path_to_key_file>\n", argv[0]);
@@ -96,6 +113,8 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, cleanup);
   signal(SIGTERM, cleanup);
 
+  init_chatlog(&chatlog);
+
   while (1) {
     if (msgrcv(mqid, &message, client_length, SERVER_MTYPE, 0) == -1) {
       perror("Server: msgrcv failed.");
@@ -114,6 +133,7 @@ int main(int argc, char *argv[]) {
           printf("Server: User %ld added with username: %s\n", message.pid, users[nusers - 1].username);
           broadcast_to_all(MJOIN, users[nusers - 1].username, NULL);
           send_user_list(message.pid);
+          send_chat_log(message.pid);
         } else {
           fprintf(stderr, "Server: User limit reached. Cannot add more users.\n");
         }
@@ -134,6 +154,7 @@ int main(int argc, char *argv[]) {
         if (userp) {
           printf("Server: Message from %s: %s\n", userp->username, message.body);
           broadcast_to_all(MMESSAGE, userp->username, message.body);
+          add_message(&chatlog, userp->username, message.body, MMESSAGE);
         } else {
           fprintf(stderr, "Server: User %ld not found for message.\n", message.pid);
         }

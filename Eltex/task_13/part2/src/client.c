@@ -13,13 +13,14 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "log.h"
 #include "ui.h"
 
 extern char *name;
 extern char input_buffer[MAX_MSG_SIZE];
-extern char messages[MAX_MESSAGES][MAX_MSG_SIZE];
+extern chatlog_t chatlog;
 extern char users[MAX_USERS][MAX_USERNAME_SIZE];
-extern int msg_count;
+// extern int msg_count;
 extern int user_count;
 extern pthread_mutex_t buffer_mut;
 extern int running;
@@ -61,11 +62,7 @@ static void *con_thread_func(void *arg) {
       pthread_exit(NULL);
     }
     if (m.type == MJOIN || m.type == MLEAVE || m.type == MLIST_USERS) {
-      const char *action = (m.type == MJOIN) ? "joined" : (m.type == MLEAVE) ? "left" : "user list updated";
-      if (msg_count < MAX_MESSAGES) {
-        snprintf(messages[msg_count], MAX_MSG_SIZE, "%s has %s", m.data.userlist.username, action);
-        msg_count++;
-      }
+      add_message(&chatlog, m.data.userlist.username, "", m.type);
       if (m.type == MJOIN) {
         if (user_count < MAX_USERS) {
           snprintf(users[user_count], MAX_USERNAME_SIZE, "%s", m.data.userlist.username);
@@ -82,15 +79,11 @@ static void *con_thread_func(void *arg) {
           }
         }
       }
-      update_ui(UUSER);
+      update_ui(UUSER, 1);
     } else if (m.type == MMESSAGE) {
-      if (msg_count < MAX_MESSAGES) {
-        int can_fit = 64 - (int)strlen(m.data.chat.username) - 2;
-        snprintf(messages[msg_count], MAX_MSG_SIZE, "%s: %.*s", m.data.chat.username, can_fit, m.data.chat.msgtext);
-        msg_count++;
-      }
+      add_message(&chatlog, m.data.chat.username, m.data.chat.msgtext, MMESSAGE);
     }
-    update_ui(ULOG);
+    update_ui(ULOG, 0);
   }
   return NULL;
 }

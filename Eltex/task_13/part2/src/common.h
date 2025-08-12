@@ -27,6 +27,7 @@ typedef struct {
 typedef struct {
   char username[MAX_USERNAME_SIZE];
   char msgtext[MAX_MSG_SIZE];
+  msgtype type;
 } chatmsg;
 
 typedef struct {
@@ -45,6 +46,6 @@ typedef struct {
 typedef struct {
   long pid;
   char username[MAX_USERNAME_SIZE];
-} user;
+} user_t;
 
 #endif  // COMMON_H_

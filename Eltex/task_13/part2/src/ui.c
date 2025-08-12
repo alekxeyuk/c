@@ -14,12 +14,13 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "log.h"
 
 static WINDOW *log_win, *users_win, *input_win;
 extern char input_buffer[MAX_MSG_SIZE];
-extern char messages[MAX_MESSAGES][MAX_MSG_SIZE];
+extern chatlog_t chatlog;
 extern char users[MAX_USERS][MAX_USERNAME_SIZE];
-extern int msg_count;
+// extern int msg_count;
 extern int user_count;
 extern int running;
 static pthread_mutex_t ui_mut = PTHREAD_MUTEX_INITIALIZER;
@@ -55,11 +56,17 @@ static void draw_messages(void) {
   getmaxyx(log_win, max_y, max_x);
 
   // Show last visible messages
-  int start = msg_count - (max_y - 2);
+  int start = chatlog.count - (max_y - 2);
   if (start < 0) start = 0;
 
-  for (int i = start; i < msg_count; i++) {
-    mvwprintw(log_win, i - start + 1, 1, "%.*s", max_x, messages[i]);
+  for (int i = start; i < chatlog.count; i++) {
+    const chatmsg *m = get_message(&chatlog, i);
+    if (m->type != MMESSAGE) {
+      const char *action = (m->type == MJOIN) ? "joined" : (m->type == MLEAVE) ? "left" : "user list updated";
+      mvwprintw(log_win, i - start + 1, 1, "%s has %s", m->username, action);
+    } else {
+      mvwprintw(log_win, i - start + 1, 1, "%s: %.*s", m->username, max_x - 3 - (int)strlen(m->username), m->msgtext);
+    }
   }
 
   wnoutrefresh(log_win);
@@ -82,7 +89,7 @@ static void draw_users(void) {
 static void draw_input(void) {
   werase(input_win);
   box(input_win, 0, 0);
-  mvwprintw(input_win, 0, 1, " Ctrl+Enter to send ");
+  mvwprintw(input_win, 0, 1, " Ctrl+Enter or TAB to send ");
   mvwprintw(input_win, 1, 1, "> %s", input_buffer);
   wnoutrefresh(input_win);
 }
@@ -159,8 +166,8 @@ static void *ui_thread_func(void *arg) {
     }
     update_type = UNOOP;
     doupdate();
-    pthread_mutex_unlock(&ui_mut);
     pthread_cond_signal(&op_complete);
+    pthread_mutex_unlock(&ui_mut);
   }
 
   delwin(log_win);
@@ -170,6 +177,7 @@ static void *ui_thread_func(void *arg) {
 
   pthread_mutex_destroy(&ui_mut);
   pthread_cond_destroy(&ui_update);
+  pthread_cond_destroy(&op_complete);
 
   return NULL;
 }
@@ -180,10 +188,14 @@ int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_
   return pthread_create(ui_thread, NULL, ui_thread_func, NULL);
 }
 
-void update_ui(update_type_t type) {
+void update_ui(update_type_t type, int block) {
   pthread_mutex_lock(&ui_mut);
   update_type = type;
   pthread_cond_signal(&ui_update);
-  pthread_cond_wait(&op_complete, &ui_mut);
+  if (block) {
+    pthread_cond_wait(&op_complete, &ui_mut);
+  } else {
+    pthread_cond_signal(&op_complete);
+  }
   pthread_mutex_unlock(&ui_mut);
 }
