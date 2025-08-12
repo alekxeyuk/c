@@ -15,13 +15,13 @@
 #include "common.h"
 #include "log.h"
 #include "ui.h"
-#include "queue.h"
+#include "flags.h"
 
 extern char *name;
 extern char input_buffer[MAX_MSG_SIZE];
 extern chatlog_t chatlog;
 extern char users[MAX_USERS][MAX_USERNAME_SIZE];
-extern queue_t command_queue;
+extern flags_t flags;
 extern int user_count;
 extern pthread_mutex_t buffer_mut;
 extern int running;

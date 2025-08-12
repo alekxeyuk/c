@@ -14,8 +14,8 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "flags.h"
 #include "log.h"
-#include "queue.h"
 
 static WINDOW *log_win, *users_win, *input_win;
 extern char input_buffer[MAX_MSG_SIZE];
@@ -25,7 +25,7 @@ extern int user_count;
 extern int running;
 static pthread_mutex_t ui_mut = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ui_update = PTHREAD_COND_INITIALIZER;
-extern queue_t command_queue;
+extern flags_t flags;
 
 static pthread_mutex_t *log_mut = NULL;
 static pthread_mutex_t *users_mut = NULL;
@@ -91,7 +91,7 @@ static void draw_input(void) {
   werase(input_win);
   box(input_win, 0, 0);
   mvwprintw(input_win, 0, 1, " Ctrl+Enter or TAB to send ");
-  mvwprintw(input_win, 1, 1, "> %s", input_buffer);
+  mvwprintw(input_win, 1, 1, "> %s~", input_buffer);
   wnoutrefresh(input_win);
 }
 
@@ -143,31 +143,25 @@ static void *ui_thread_func(void *arg) {
   struct winsize ws;
   while (running) {
     pthread_mutex_lock(&ui_mut);
-    while (command_queue.size == 0) {
+    while (!flags) {
       pthread_cond_wait(&ui_update, &ui_mut);
     }
-    update_type_t update_type = dequeue(&command_queue);
-    switch (update_type) {
-      case URESIZE:
-        ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-        resizeterm(ws.ws_row, ws.ws_col);
-        handle_resize();
-        break;
-      case ULOG:
-        draw_messages();
-        break;
-      case UUSER:
-        draw_users();
-        break;
-      case UINPUT:
-        draw_input();
-        break;
-      case USTOP:
-        break;
-      case UNOOP:
-        break;
+    if (IS_BIT_SET(flags, RESIZE_BIT)) {
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+      resizeterm(ws.ws_row, ws.ws_col);
+      handle_resize();
+    }
+    if (IS_BIT_SET(flags, LOG_BIT)) {
+      draw_messages();
+    }
+    if (IS_BIT_SET(flags, USER_BIT)) {
+      draw_users();
+    }
+    if (IS_BIT_SET(flags, INPUT_BIT)) {
+      draw_input();
     }
     doupdate();
+    flags = 0;
     pthread_mutex_unlock(&ui_mut);
   }
 
@@ -190,7 +184,7 @@ int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_
 
 void update_ui(update_type_t type) {
   pthread_mutex_lock(&ui_mut);
-  enqueue(&command_queue, type);
+  SET_BIT(flags, type);
   pthread_cond_signal(&ui_update);
   pthread_mutex_unlock(&ui_mut);
 }

@@ -13,15 +13,15 @@
 
 #include "client.h"
 #include "common.h"
+#include "flags.h"
 #include "log.h"
 #include "ui.h"
-#include "queue.h"
 
 char* name;
 char input_buffer[MAX_MSG_SIZE];
 chatlog_t chatlog = {0};
 char users[MAX_USERS][MAX_USERNAME_SIZE];
-queue_t command_queue = {0};
+flags_t flags = 0;
 int user_count = 0;
 static int input_pos = 0;
 
@@ -101,7 +101,6 @@ int main(int argc, char* argv[]) {
   }
 
   init_chatlog(&chatlog);
-  init_queue(&command_queue);
 
   start_ui_thread(&ui_thread, NULL, NULL);
   start_publisher_thread(&pub_thread);

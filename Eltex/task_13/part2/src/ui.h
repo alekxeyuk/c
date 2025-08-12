@@ -7,10 +7,10 @@
 
 typedef enum {
   UNOOP = -1,
-  URESIZE = 1,
   ULOG,
   UUSER,
   UINPUT,
+  URESIZE,
   USTOP,
 } update_type_t;
 
