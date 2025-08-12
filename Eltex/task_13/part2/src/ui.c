@@ -15,18 +15,17 @@
 
 #include "common.h"
 #include "log.h"
+#include "queue.h"
 
 static WINDOW *log_win, *users_win, *input_win;
 extern char input_buffer[MAX_MSG_SIZE];
 extern chatlog_t chatlog;
 extern char users[MAX_USERS][MAX_USERNAME_SIZE];
-// extern int msg_count;
 extern int user_count;
 extern int running;
 static pthread_mutex_t ui_mut = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ui_update = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t op_complete = PTHREAD_COND_INITIALIZER;
-static update_type_t update_type = UNOOP;
+extern queue_t command_queue;
 
 static pthread_mutex_t *log_mut = NULL;
 static pthread_mutex_t *users_mut = NULL;
@@ -62,8 +61,10 @@ static void draw_messages(void) {
   for (int i = start; i < chatlog.count; i++) {
     const chatmsg *m = get_message(&chatlog, i);
     if (m->type != MMESSAGE) {
+      wattron(log_win, A_ITALIC | A_DIM);
       const char *action = (m->type == MJOIN) ? "joined" : (m->type == MLEAVE) ? "left" : "user list updated";
       mvwprintw(log_win, i - start + 1, 1, "%s has %s", m->username, action);
+      wattroff(log_win, A_ITALIC | A_DIM);
     } else {
       mvwprintw(log_win, i - start + 1, 1, "%s: %.*s", m->username, max_x - 3 - (int)strlen(m->username), m->msgtext);
     }
@@ -129,6 +130,7 @@ static void *ui_thread_func(void *arg) {
   noecho();
   keypad(stdscr, TRUE);
   curs_set(0);
+  start_color();
 
   wnoutrefresh(stdscr);
 
@@ -141,9 +143,10 @@ static void *ui_thread_func(void *arg) {
   struct winsize ws;
   while (running) {
     pthread_mutex_lock(&ui_mut);
-    while (update_type == UNOOP) {
+    while (command_queue.size == 0) {
       pthread_cond_wait(&ui_update, &ui_mut);
     }
+    update_type_t update_type = dequeue(&command_queue);
     switch (update_type) {
       case URESIZE:
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
@@ -164,9 +167,7 @@ static void *ui_thread_func(void *arg) {
       case UNOOP:
         break;
     }
-    update_type = UNOOP;
     doupdate();
-    pthread_cond_signal(&op_complete);
     pthread_mutex_unlock(&ui_mut);
   }
 
@@ -177,7 +178,6 @@ static void *ui_thread_func(void *arg) {
 
   pthread_mutex_destroy(&ui_mut);
   pthread_cond_destroy(&ui_update);
-  pthread_cond_destroy(&op_complete);
 
   return NULL;
 }
@@ -188,14 +188,9 @@ int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_
   return pthread_create(ui_thread, NULL, ui_thread_func, NULL);
 }
 
-void update_ui(update_type_t type, int block) {
+void update_ui(update_type_t type) {
   pthread_mutex_lock(&ui_mut);
-  update_type = type;
+  enqueue(&command_queue, type);
   pthread_cond_signal(&ui_update);
-  if (block) {
-    pthread_cond_wait(&op_complete, &ui_mut);
-  } else {
-    pthread_cond_signal(&op_complete);
-  }
   pthread_mutex_unlock(&ui_mut);
 }

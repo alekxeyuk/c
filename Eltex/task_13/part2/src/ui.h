@@ -15,5 +15,5 @@ typedef enum {
 } update_type_t;
 
 int start_ui_thread(pthread_t *ui_thread, pthread_mutex_t *l_mut, pthread_mutex_t *u_mut);
-void update_ui(update_type_t type, int block);
+void update_ui(update_type_t type);
 #endif  // UI_H_

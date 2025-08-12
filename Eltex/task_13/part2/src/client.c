@@ -15,12 +15,13 @@
 #include "common.h"
 #include "log.h"
 #include "ui.h"
+#include "queue.h"
 
 extern char *name;
 extern char input_buffer[MAX_MSG_SIZE];
 extern chatlog_t chatlog;
 extern char users[MAX_USERS][MAX_USERNAME_SIZE];
-// extern int msg_count;
+extern queue_t command_queue;
 extern int user_count;
 extern pthread_mutex_t buffer_mut;
 extern int running;
@@ -79,11 +80,11 @@ static void *con_thread_func(void *arg) {
           }
         }
       }
-      update_ui(UUSER, 1);
+      update_ui(UUSER);
     } else if (m.type == MMESSAGE) {
       add_message(&chatlog, m.data.chat.username, m.data.chat.msgtext, MMESSAGE);
     }
-    update_ui(ULOG, 0);
+    update_ui(ULOG);
   }
   return NULL;
 }
