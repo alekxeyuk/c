@@ -11,6 +11,8 @@
 #include "common.h"
 
 int main(void) {
+  setlocale(LC_ALL, "C.utf8");
+  
   int shm_fd;
   void *shm_ptr;
 
