@@ -40,8 +40,8 @@ static size_t server_length = sizeof(servermsg_t) - sizeof(long);
 int init_message_queue(void) {
   pid = getpid();
 
-  if ((shmq_open(SERVER_SHM_NAME, &mqid)) == -1) {
-    perror("Client: msgget failed.");
+  if ((shmq_open(SERVER_SHM_NAME, &mqid, pid)) != 0) {
+    perror("Client: shmq_open failed.");
     return -1;
   }
   return 1;
@@ -49,7 +49,7 @@ int init_message_queue(void) {
 
 static void *con_thread_func(void *arg) {
   (void)arg;
-  servermsg_t m;
+  servermsg_t m = {0};
 
   while (running) {
     if (msgrcv(&mqid, &m, server_length, (long)pid) == -1) {
@@ -151,7 +151,4 @@ void close_message_queue(void) {
   if (mqid.fd == 0 || msgctl(&mqid, IPC_RMID) == -1) {
     perror("Client: msgctl failed.");
   }
-  // } else {
-  //   mqid = -1;
-  // }
 }

@@ -89,22 +89,10 @@ static user_t *find_user_by_pid(long pid) {
 int main(void) {
   setlocale(LC_ALL, "C.utf8");
 
-  // key_t key;
-  clientmsg_t message;
+  clientmsg_t message = {0};
   user_t *userp = NULL;
 
-  // if (argc != 2) {
-  //   fprintf(stderr, "Usage: %s <path_to_key_file>\n", argv[0]);
-  //   exit(EXIT_FAILURE);
-  // }
-
-  // if ((key = ftok(argv[1], 'A')) == -1) {
-  //   perror("Server: ftok failed.");
-  //   exit(EXIT_FAILURE);
-  // }
-  // printf("Server: Generated key: %d.\n", (int)key);
-
-  if ((shmq_create(SERVER_SHM_NAME, &mqid)) == -1) {
+  if ((shmq_create(SERVER_SHM_NAME, &mqid, SERVER_MTYPE)) == -1) {
     perror("Server: msgget failed.");
     exit(EXIT_FAILURE);
   }

@@ -12,15 +12,44 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+static int init_waiter(shmq_t *q, int index) {
+  if (index < 0 || index >= MAX_USERS) return -1;
+  if (sem_init(&q->waiters[index], 1, 1) != 0) return -1;
+  q->w_count++;
+  return 0;
+}
+
+static sem_t *get_waiter(shmq_t *q, long pid) {
+  for (size_t i = 0; i < q->w_count; i++) {
+    if (q->pids[i] == pid) {
+      return &q->waiters[i];
+    }
+  }
+  return NULL;
+}
+
+static sem_t *wait_for(shmq_t *q, long pid) {
+  for (int i = 0; i < MAX_USERS; i++) {
+    if (q->pids[i] == 0) {
+      q->pids[i] = pid;
+      if (init_waiter(q, i) != 0) return NULL;
+      return &q->waiters[i];
+    }
+  }
+  return NULL;
+}
+
 static int init_shared(shmq_t *q) {
   if (q->magic == SHMQ_MAGIC) return 0;
 
   if (sem_init(&q->mutex, 1, 1) != 0) return -1;
-  if (sem_init(&q->items, 1, 0) != 0) return -1;
   if (sem_init(&q->spaces, 1, MAX_QUEUE_SIZE) != 0) return -1;
 
+  q->w_count = 0;
   q->count = 0;
   memset(q->messages, 0, sizeof(q->messages));
+  memset(q->waiters, 0, sizeof(q->waiters));
+  memset(q->pids, 0, sizeof(q->pids));
 
   q->magic = SHMQ_MAGIC;
   return 0;
@@ -30,8 +59,12 @@ static int cleanup_shared(shmq_t *q) {
   if (q->magic != SHMQ_MAGIC) return -1;
 
   sem_destroy(&q->mutex);
-  sem_destroy(&q->items);
   sem_destroy(&q->spaces);
+  for (size_t i = 0; i < q->w_count; i++) {
+    sem_destroy(&q->waiters[i]);
+    q->pids[i] = 0;
+  }
+  q->w_count = 0;
 
   q->count = 0;
   q->magic = 0;
@@ -40,7 +73,7 @@ static int cleanup_shared(shmq_t *q) {
   return 0;
 }
 
-int shmq_create(const char *name, shmq_handle_t *handle) {
+int shmq_create(const char *name, shmq_handle_t *handle, long pid) {
   int fd = shm_open(name, O_CREAT | O_RDWR, S_IRWXU);
   if (fd < 0) return errno;
 
@@ -72,11 +105,12 @@ int shmq_create(const char *name, shmq_handle_t *handle) {
 
   handle->fd = fd;
   handle->queue = queue;
+  handle->waiting_for = wait_for(queue, pid);
 
   return 0;
 }
 
-int shmq_open(const char *name, shmq_handle_t *handle) {
+int shmq_open(const char *name, shmq_handle_t *handle, long pid) {
   int fd = shm_open(name, O_RDWR, S_IRWXU);
   if (fd < 0) return errno;
 
@@ -97,6 +131,7 @@ int shmq_open(const char *name, shmq_handle_t *handle) {
 
   handle->fd = fd;
   handle->queue = queue;
+  handle->waiting_for = wait_for(queue, pid);
 
   return 0;
 }
@@ -137,8 +172,14 @@ int msgsnd(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype) {
   memcpy(&message->data.server_msg, msg, msgsz);
   queue->count++;
 
+  if (queue->w_count > 0) {
+    sem_t *waiter = get_waiter(queue, mtype);
+    if (waiter) {
+      sem_post(waiter);
+    }
+  }
+
   sem_post(&queue->mutex);
-  sem_post(&queue->items);
 
   return 0;
 }
@@ -148,9 +189,8 @@ int msgrcv(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype) {
 
   shmq_t *queue = handle->queue;
 
-  // in while loop wait for a message with the specified mtype
   while (true) {
-    sem_wait(&queue->items);
+    sem_wait(handle->waiting_for);
     sem_wait(&queue->mutex);
     for (int i = 0; i < queue->count; i++) {
       if (queue->messages[i].used && queue->messages[i].mtype == mtype) {
@@ -166,8 +206,6 @@ int msgrcv(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype) {
       }
     }
     sem_post(&queue->mutex);
-    sem_post(&queue->items);
-    sleep(1);
   }
 
   return -1;
