@@ -45,5 +45,6 @@ int shmq_open(const char *name, shmq_handle_t *handle, long pid);
 int msgctl(shmq_handle_t *handle, int cmd);
 int msgsnd(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype);
 int msgrcv(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype);
+int clean_client(shmq_handle_t *handle, long pid);
 
 #endif  // MSGQ_H_

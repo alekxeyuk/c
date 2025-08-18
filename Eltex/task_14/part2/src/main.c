@@ -55,6 +55,8 @@ static void stop(int signum) {
   pthread_cancel(con_thread);
   pthread_join(con_thread, NULL);
   printf("Consumer thread stopped.\n");
+  close_message_queue();
+  printf("Message queue closed.\n");
   exit(EXIT_SUCCESS);
 }
 

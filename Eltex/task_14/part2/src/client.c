@@ -148,7 +148,7 @@ void send_message(msgtype type) {
 }
 
 void close_message_queue(void) {
-  if (mqid.fd == 0 || msgctl(&mqid, IPC_RMID) == -1) {
+  if (mqid.fd == 0 || clean_client(&mqid, pid) == -1) {
     perror("Client: msgctl failed.");
   }
 }

@@ -15,12 +15,11 @@
 static int init_waiter(shmq_t *q, int index) {
   if (index < 0 || index >= MAX_USERS) return -1;
   if (sem_init(&q->waiters[index], 1, 1) != 0) return -1;
-  q->w_count++;
   return 0;
 }
 
 static sem_t *get_waiter(shmq_t *q, long pid) {
-  for (size_t i = 0; i < q->w_count; i++) {
+  for (size_t i = 0; i < MAX_USERS; i++) {
     if (q->pids[i] == pid) {
       return &q->waiters[i];
     }
@@ -60,7 +59,7 @@ static int cleanup_shared(shmq_t *q) {
 
   sem_destroy(&q->mutex);
   sem_destroy(&q->spaces);
-  for (size_t i = 0; i < q->w_count; i++) {
+  for (size_t i = 0; i < MAX_USERS; i++) {
     sem_destroy(&q->waiters[i]);
     q->pids[i] = 0;
   }
@@ -172,11 +171,9 @@ int msgsnd(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype) {
   memcpy(&message->data.server_msg, msg, msgsz);
   queue->count++;
 
-  if (queue->w_count > 0) {
-    sem_t *waiter = get_waiter(queue, mtype);
-    if (waiter) {
-      sem_post(waiter);
-    }
+  sem_t *waiter = get_waiter(queue, mtype);
+  if (waiter) {
+    sem_post(waiter);
   }
 
   sem_post(&queue->mutex);
@@ -209,4 +206,22 @@ int msgrcv(shmq_handle_t *handle, const void *msg, size_t msgsz, long mtype) {
   }
 
   return -1;
+}
+
+int clean_client(shmq_handle_t *handle, long pid) {
+  if (!handle || !handle->queue) return -1;
+
+  shmq_t *queue = handle->queue;
+
+  sem_wait(&queue->mutex);
+  for (size_t i = 0; i < MAX_USERS; i++) {
+    if (queue->pids[i] == pid) {
+      sem_destroy(&queue->waiters[i]);
+      queue->pids[i] = 0;
+      break;
+    }
+  }
+  sem_post(&queue->mutex);
+
+  return 0;
 }
