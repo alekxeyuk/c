@@ -44,7 +44,7 @@ int main(void) {
   if ((fd = create_named_socket(CLIENT_SOCKET_NAME, SERVER_SOCKET_NAME)) < 0) error_exit("socket");
 
   char msg[MSG_SIZE];
-  ssize_t len = write(fd, "Hello!", 7);
+  ssize_t len = write(fd, "Hello!", 6);
   if (len < 0) {
     close(fd);
     unlink(CLIENT_SOCKET_NAME);

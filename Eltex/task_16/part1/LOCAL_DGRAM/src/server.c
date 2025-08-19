@@ -37,7 +37,7 @@ int main(void) {
   if ((fd = create_named_socket(SERVER_SOCKET_NAME)) < 0) error_exit("socket");
 
   char msg[MSG_SIZE];
-  ssize_t len = recvfrom(fd, msg, sizeof(msg), 0, (struct sockaddr *)&client, &client_len);
+  ssize_t len = recvfrom(fd, msg, sizeof(msg) - 1, 0, (struct sockaddr *)&client, &client_len);
   if (len < 0) {
     close(fd);
     unlink(SERVER_SOCKET_NAME);
@@ -47,7 +47,7 @@ int main(void) {
   msg[len] = '\0';
   printf("Server: Received message: %s\n", msg);
 
-  if (sendto(fd, "Hi!", 4, 0, (struct sockaddr *)&client, client_len) < 0) {
+  if (sendto(fd, "Hi!", 3, 0, (struct sockaddr *)&client, client_len) < 0) {
     perror("sendto");
   }
 
