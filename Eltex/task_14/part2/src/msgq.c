@@ -223,5 +223,8 @@ int clean_client(shmq_handle_t *handle, long pid) {
   }
   sem_post(&queue->mutex);
 
+  munmap(queue, SHM_SIZE);
+  close(handle->fd);
+  
   return 0;
 }
