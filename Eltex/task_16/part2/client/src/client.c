@@ -83,7 +83,10 @@ int main(int argc, char *argv[]) {
     }
 
     buf[rec_size] = '\0';
-    printf("Received: %s\n", buf);
+    if (buf[rec_size - 1] == '\n') {
+      buf[rec_size - 1] = '\0';
+    }
+    printf("[Received: %s]\n", buf);
 
     sleep(1);
   }
