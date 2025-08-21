@@ -12,10 +12,12 @@
 #include <unistd.h>
 
 static volatile sig_atomic_t should_exit = 0;
+static int sockfd;
 
 static void signal_handler(int signum) {
   (void)signum;
   should_exit = 1;
+  close(sockfd);
   printf("\nStoping...\n");
 }
 
@@ -45,7 +47,6 @@ static int socket_connect(const char *ip, unsigned short port) {
 int main(int argc, char *argv[]) {
   setlocale(LC_ALL, "C.utf8");
 
-  int sockfd;
   char buf[BUFFER_SIZE];
   ssize_t rec_size;
 
