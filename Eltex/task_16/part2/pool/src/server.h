@@ -12,7 +12,7 @@
 #define BUFFER_SIZE 128
 #define TIME_REQUEST "GET_TIME"
 #define R_Q_SIZE 5
-#define MAX_THREADS 2
+#define MAX_THREADS 10
 
 typedef struct worker {
   pthread_t thread;
