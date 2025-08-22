@@ -21,11 +21,12 @@ static void signal_handler(int signum) {
   printf("\nStoping...\n");
 }
 
-static int socket_connect(const char *ip, unsigned short port) {
+static int socket_connect(enum __socket_type type, const char *ip,
+                          unsigned short port) {
   struct sockaddr_in addr;
   int fd;
 
-  if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) return -1;
+  if ((fd = socket(AF_INET, type, 0)) < 0) return -1;
 
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
@@ -50,22 +51,32 @@ int main(int argc, char *argv[]) {
   char buf[BUFFER_SIZE];
   ssize_t rec_size;
 
-  if (argc != 3) {
-    fprintf(stderr, "Usage: %s <ip> <port>\n", argv[0]);
+  if (argc != 4) {
+    fprintf(stderr, "Usage: %s <udp|tcp> <ip> <port>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
-  const char *ip = argv[1];
-  unsigned short port = (unsigned short)atoi(argv[2]);
+  enum __socket_type type = SOCK_STREAM;
+  const char *proto = argv[1];
+  if (strcmp(proto, "udp") == 0) {
+    type = SOCK_DGRAM;
+  } else if (strcmp(proto, "tcp") != 0) {
+    fprintf(stderr, "Invalid protocol: %s\n", proto);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *ip = argv[2];
+  unsigned short port = (unsigned short)atoi(argv[3]);
   if (port == 0) {
-    fprintf(stderr, "Invalid port number: %s\n", argv[2]);
+    fprintf(stderr, "Invalid port number: %s\n", argv[3]);
     exit(EXIT_FAILURE);
   }
 
   signal(SIGINT, signal_handler);
   signal(SIGTERM, signal_handler);
 
-  if ((sockfd = socket_connect(ip, port)) < 0) error_exit("socket_connect");
+  if ((sockfd = socket_connect(type, ip, port)) < 0)
+    error_exit("socket_connect");
 
   while (!should_exit) {
     if (write(sockfd, TIME_REQUEST, strlen(TIME_REQUEST)) < 0) {
