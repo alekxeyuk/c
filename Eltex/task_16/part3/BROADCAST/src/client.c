@@ -51,7 +51,7 @@ int main(void) {
       error_exit("recvfrom");
     }
     msg[len] = '\0';
-    printf("Client: Received message: %s\n", msg);
+    printf("Client: Received message: %s [%s:%d]\n", msg, inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
 
     len = sendto(fd, "Hello from client!", 18, 0, (struct sockaddr *)&server_addr, server_len);
     if (len < 0) {

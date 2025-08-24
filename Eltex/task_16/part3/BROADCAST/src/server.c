@@ -9,24 +9,13 @@
 
 #include "common.h"
 
-static int create_socket(unsigned short port) {
-  struct sockaddr_in addr;
+static int create_socket(void) {
   int fd;
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) return -1;
 
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = INADDR_ANY;
-
   int on = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) < 0) {
-    close(fd);
-    return -1;
-  }
-
-  if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     close(fd);
     return -1;
   }
@@ -41,7 +30,7 @@ int main(void) {
   struct sockaddr_in client, broadcast;
   socklen_t client_len = sizeof(client);
 
-  if ((fd = create_socket(RESPONSE_PORT)) < 0) error_exit("socket");
+  if ((fd = create_socket()) < 0) error_exit("socket");
 
   memset(&broadcast, 0, sizeof(broadcast));
   broadcast.sin_family = AF_INET;
@@ -57,7 +46,7 @@ int main(void) {
     ssize_t len = recvfrom(fd, msg, sizeof(msg) - 1, MSG_DONTWAIT, (struct sockaddr *)&client, &client_len);
     if (len > 0) {
       msg[len] = '\0';
-      printf("Server: Received message: %s\n", msg);
+      printf("Server: Received message: %s [%s:%d]\n", msg, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
     }
 
     sleep(1);
