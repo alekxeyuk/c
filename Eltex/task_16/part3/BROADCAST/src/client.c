@@ -20,6 +20,12 @@ static int create_socket(unsigned short port) {
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) return -1;
 
+  int on = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) < 0) {
+    close(fd);
+    return -1;
+  }
+
   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     close(fd);
     return -1;
