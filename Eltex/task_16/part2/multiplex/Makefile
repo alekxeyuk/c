@@ -15,19 +15,24 @@ BIN_DIR = bin
 
 # Source files
 SELECT_SRC = select.c
+POLL_SRC = poll.c
 
 # Object files
 SELECT_OBJS    = $(addprefix $(SRC_DIR)/, $(SELECT_SRC:.c=.o))
+POLL_OBJS    = $(addprefix $(SRC_DIR)/, $(POLL_SRC:.c=.o))
 
 # Binary files
 SELECT_BIN    = $(BIN_DIR)/select
+POLL_BIN    = $(BIN_DIR)/poll
 
 # Default target
-all: $(SELECT_BIN)
+all: $(SELECT_BIN) ${POLL_BIN}
 
 $(SELECT_BIN): $(SELECT_OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
+$(POLL_BIN): $(POLL_OBJS) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
@@ -37,7 +42,7 @@ $(BIN_DIR):
 
 # Clean up the object files and executable
 clean:
-	rm -rf $(BIN_DIR) $(SELECT_OBJS) $(CLIENT_OBJS)
+	rm -rf $(BIN_DIR) $(SELECT_OBJS) ${POLL_OBJS} $(CLIENT_OBJS)
 
 rebuild: clean all
 
