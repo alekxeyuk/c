@@ -34,6 +34,9 @@ int main(void) {
     return -1;
   }
 
+  __u_char ttl = 32;
+  setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+
   while (1) {
     if (sendto(fd, "Hello from server!", 18, 0, (struct sockaddr *)&multicast, multicast_len) < 0) {
       perror("sendto");
