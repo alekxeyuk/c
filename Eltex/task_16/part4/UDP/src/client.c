@@ -44,6 +44,7 @@ static char *constuct_udp_packet(const char *payload, size_t *udp_len, uint16_t 
   *udp_len = sizeof(struct udphdr) + payload_len;
 
   char *packet = (char *)malloc(*udp_len);
+  if (packet == NULL) error_exit("malloc");
   struct udphdr *udp_header = (struct udphdr *)packet;
   char *data = packet + sizeof(struct udphdr);
 
