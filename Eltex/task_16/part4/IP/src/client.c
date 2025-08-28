@@ -1,14 +1,17 @@
+#define _GNU_SOURCE
 #include "client.h"
 
 #include <arpa/inet.h>
 #include <locale.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
@@ -58,7 +61,8 @@ static char *constuct_udp_packet(const char *payload, size_t *udp_len, uint16_t 
   return packet;
 }
 
-static char *constuct_ip_packet(const char *udp_packet, size_t udp_len, size_t *ip_len, const char *dest_ip) {
+static char *constuct_ip_packet(const char *udp_packet, size_t udp_len, size_t *ip_len, const char *dest_ip,
+                                in_addr_t src_ip) {
   *ip_len = sizeof(struct iphdr) + udp_len;
   char *packet = (char *)malloc(*ip_len);
   if (packet == NULL) error_exit("malloc");
@@ -73,7 +77,7 @@ static char *constuct_ip_packet(const char *udp_packet, size_t udp_len, size_t *
   ip_header->ttl = 64;
   ip_header->protocol = IPPROTO_UDP;
   ip_header->check = 0;
-  ip_header->saddr = inet_addr(dest_ip);
+  ip_header->saddr = src_ip;
   ip_header->daddr = inet_addr(dest_ip);
 
   memcpy(packet + sizeof(struct iphdr), udp_packet, udp_len);
@@ -91,6 +95,12 @@ static void send_ip_packet(const char *packet, size_t p_len, int fd, const char 
   printf("Packet sent to [%s:%d]\n", dest_ip, dest_port);
 }
 
+static void interface_data(struct ifreq *ifr, int fd, const char *if_name) {
+  memset(ifr, 0, sizeof(*ifr));
+  snprintf(ifr->ifr_name, sizeof(ifr->ifr_name), "%s", if_name);
+  if (ioctl(fd, SIOCGIFADDR, ifr) < 0) error_exit("ioctl");
+}
+
 int main(int argc, char *argv[]) {
   setlocale(LC_ALL, "C.utf8");
 
@@ -100,11 +110,14 @@ int main(int argc, char *argv[]) {
   ssize_t rec_size;
   uint16_t dest_port, from_port;
   char *dest_ip;
+  struct ifreq ifr;
+  const char *if_name = "eth0";
 
-  if (argc != 4) {
-    fprintf(stderr, "Usage: %s <destination_ip> <destination_port> <from_port>\n", argv[0]);
+  if (argc < 4) {
+    fprintf(stderr, "Usage: %s <destination_ip> <destination_port> <from_port> <interface>\n", argv[0]);
     error_exit("Invalid arguments");
   }
+  if (argc == 5) if_name = argv[4];
   dest_ip = argv[1];
   dest_port = (uint16_t)atoi(argv[2]);
   from_port = (uint16_t)atoi(argv[3]);
@@ -118,10 +131,14 @@ int main(int argc, char *argv[]) {
   int opt = 1;
   if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &opt, sizeof(opt)) < 0) error_exit("setsockopt");
 
+  interface_data(&ifr, sockfd, if_name);
+  struct sockaddr_in *ip_addr = (struct sockaddr_in *)&ifr.ifr_addr;
+  printf("Our IP: %s\n", inet_ntoa(ip_addr->sin_addr));
+
   size_t udp_len;
   char *udp_packet = constuct_udp_packet(MESSAGE, &udp_len, from_port, dest_port);
   size_t ip_len;
-  char *ip_packet = constuct_ip_packet(udp_packet, udp_len, &ip_len, dest_ip);
+  char *ip_packet = constuct_ip_packet(udp_packet, udp_len, &ip_len, dest_ip, ip_addr->sin_addr.s_addr);
 
   while (!should_exit) {
     sleep(1);
