@@ -54,6 +54,22 @@ static void print_mac(const unsigned char *mac) {
   }
 }
 
+static uint16_t ipv4_checksum(const void *buf, size_t len) {
+  const uint16_t *data = buf;
+  uint32_t sum = 0;
+
+  while (len > 1) {
+    sum += *data++;
+    len -= 2;
+  }
+  if (len == 1) {
+    sum += *(const uint8_t *)data << 8;
+  }
+  while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+
+  return (uint16_t)~sum;
+}
+
 static char *construct_udp_packet(const char *payload, size_t *udp_len, uint16_t src_port, uint16_t dest_port) {
   size_t payload_len = strlen(payload);
   *udp_len = sizeof(struct udphdr) + payload_len;
@@ -91,6 +107,8 @@ static char *construct_ip_packet(const char *udp_packet, size_t udp_len, size_t 
   ip_header->check = 0;
   ip_header->saddr = src_ip;
   ip_header->daddr = inet_addr(dest_ip);
+
+  ip_header->check = ipv4_checksum(ip_header, sizeof(struct iphdr));
 
   memcpy(packet + sizeof(struct iphdr), udp_packet, udp_len);
   return packet;
