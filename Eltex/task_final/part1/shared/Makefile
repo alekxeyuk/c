@@ -69,6 +69,7 @@ install:
 	fi; \
 	\
 	echo "Selected: $$selected"; \
+	mkdir -v -p "${INSTALL_DIR}"; \
 	cp -v "$$selected" "${INSTALL_DIR}/${INSTALL_AS}"; \
 	\
 	if [ $$? -eq 0 ]; then \
