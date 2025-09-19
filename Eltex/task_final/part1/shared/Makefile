@@ -31,7 +31,7 @@ $(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/client_lib.h
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 $(PLUGIN_BIN_DIR)/lib%.so: $(SRC_DIR)/%.o | $(PLUGIN_BIN_DIR)
-	$(CC) $(CFLAGS) -shared -o $@ -fPIC $<
+	$(CC) $(CFLAGS) -shared -o $@ $<
 
 $(PLUGIN_BIN_DIR):
 	mkdir -p $@
