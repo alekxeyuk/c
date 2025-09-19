@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     char response[BUFFER_SIZE];
     result = plugin.receive_response(session, response, sizeof(response));
     if (result == CLIENT_SUCCESS) {
-      printf("<: %s", response);
+      printf("<: %s\n", response);
     } else if (result == CLIENT_BUFFER_TOO_SMALL) {
       printf("Response too large for bufer\n");
     } else {
