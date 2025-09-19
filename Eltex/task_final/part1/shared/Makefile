@@ -12,7 +12,8 @@ INCLUDES = -I.
 # Directories
 SRC_DIR = src
 PLUGIN_BIN_DIR = bin
-INSTALL_DIR = ../client/bin
+C_INSTALL_DIR = ../client/bin
+S_INSTALL_DIR = ../server/bin
 
 # Source files
 PLUGINS_SRC = UDP.c
@@ -69,8 +70,10 @@ install:
 	fi; \
 	\
 	echo "Selected: $$selected"; \
-	mkdir -v -p "${INSTALL_DIR}"; \
-	cp -v "$$selected" "${INSTALL_DIR}/${INSTALL_AS}"; \
+	mkdir -v -p "${C_INSTALL_DIR}"; \
+	cp -v "$$selected" "${C_INSTALL_DIR}/${INSTALL_AS}"; \
+	mkdir -v -p "${S_INSTALL_DIR}"; \
+	cp -v "$$selected" "${S_INSTALL_DIR}/${INSTALL_AS}"; \
 	\
 	if [ $$? -eq 0 ]; then \
 		echo "Installation successful!"; \
