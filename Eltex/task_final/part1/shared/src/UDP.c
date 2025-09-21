@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
-#include "client_lib.h"
 #include <stdio.h>
+
+#include "client_lib.h"
 
 static char *constuct_udp_packet(const char *payload, size_t *udp_len, uint16_t src_port, uint16_t dest_port) {
   size_t payload_len = strlen(payload);
@@ -79,53 +80,52 @@ static int client_send_message(ClientSession *session, const char *message) {
   return CLIENT_SUCCESS;
 }
 
-static int client_receive_response(ClientSession *session, char *buf, size_t buf_size) {
-  if (!session->is_connected) {
-    return CLIENT_ERROR;
-  }
-
+static int client_receive_data(ClientSession *session, char *buf, size_t buf_size, struct sockaddr_in *src_addr,
+                               uint16_t *src_port) {
   char recv_buf[BUFFER_SIZE];
+  socklen_t addr_len = sizeof(struct sockaddr_in);
 
-  for (;;) {
-    ssize_t recv_len = recvfrom(session->sockfd, recv_buf, sizeof(recv_buf), 0, NULL, NULL);
-    if (recv_len < 0) {
-      return CLIENT_ERROR;
-    }
+  char is_response = ((void *)src_addr == (void *)src_port) && src_addr == NULL;
 
-    struct iphdr *ip_header = (struct iphdr *)recv_buf;
-    if (ip_header->protocol != IPPROTO_UDP) continue;
-
-    size_t ip_header_len = ip_header->ihl * 4;
-
-    struct udphdr *udp_header = (struct udphdr *)(recv_buf + ip_header_len);
-    if (ntohs(udp_header->dest) != session->src_port) continue;
-    if (ntohs(udp_header->source) != session->dest_port) continue;
-
-    size_t udp_header_len = sizeof(struct udphdr);
-    size_t data_offset = ip_header_len + udp_header_len;
-    size_t data_len = (size_t)recv_len - data_offset;
-
-    if (data_len >= buf_size) {
-      return CLIENT_BUFFER_TOO_SMALL;
-    }
-
-    memcpy(buf, recv_buf + data_offset, data_len);
-    buf[data_len] = '\0';
-    break;
-  }
-
-  return CLIENT_SUCCESS;
-}
-
-static int client_disconnect(ClientSession *session) {
-  if (!session->is_connected) {
+  ssize_t recv_len = recvfrom(session->sockfd, recv_buf, sizeof(recv_buf), 0, src_addr, &addr_len);
+  if (recv_len < 0) {
     return CLIENT_ERROR;
   }
 
-  printf("Disconnecting UDP client...\n");
+  struct iphdr *ip_header = (struct iphdr *)recv_buf;
+  if (ip_header->protocol != IPPROTO_UDP) {
+    return CLIENT_ERROR;
+  }
 
-  close(session->sockfd);
-  free(session);
+  size_t ip_header_len = ip_header->ihl * 4;
+
+  struct udphdr *udp_header = (struct udphdr *)(recv_buf + ip_header_len);
+
+  if (is_response) {
+    if (ntohs(udp_header->dest) != session->src_port || ntohs(udp_header->source) != session->dest_port) {
+      return CLIENT_NOT_OURS;
+    }
+  } else {
+    if (ntohs(udp_header->dest) != session->src_port) {
+      return CLIENT_NOT_OURS;
+    }
+  }
+
+  size_t udp_header_len = sizeof(struct udphdr);
+  size_t data_offset = ip_header_len + udp_header_len;
+  size_t data_len = (size_t)recv_len - data_offset;
+
+  if (data_len >= buf_size) {
+    return CLIENT_BUFFER_TOO_SMALL;
+  }
+
+  memcpy(buf, recv_buf + data_offset, data_len);
+  buf[data_len] = '\0';
+
+  if (!is_response) {
+    *src_port = ntohs(udp_header->source);
+  }
+
   return CLIENT_SUCCESS;
 }
 
@@ -133,6 +133,5 @@ const operations_t export = {
     .init = client_init,
     .connect = client_connect,
     .send_message = client_send_message,
-    .receive_response = client_receive_response,
-    .disconnect = client_disconnect,
+    .receive = client_receive_data,
 };

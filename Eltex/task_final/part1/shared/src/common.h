@@ -8,6 +8,7 @@
   } while (0)
 
 #define BUFFER_SIZE 128
+#define RESPONSE_SIZE 160
 #define STOP_MESSAGE "STOP"
 
 #endif  // COMMON_H_

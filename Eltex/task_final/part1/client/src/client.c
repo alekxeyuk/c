@@ -74,19 +74,27 @@ int main(int argc, char *argv[]) {
       goto cleanup;
     }
 
-    char response[BUFFER_SIZE];
-    result = plugin.receive_response(session, response, sizeof(response));
-    if (result == CLIENT_SUCCESS) {
-      printf("<: %s\n", response);
-    } else if (result == CLIENT_BUFFER_TOO_SMALL) {
-      printf("Response too large for bufer\n");
-    } else {
-      fprintf(stderr, "Response receive failed : %d\n", result);
+    char response[RESPONSE_SIZE];
+    for (; !should_exit;) {
+      result = plugin.receive(session, response, sizeof(response), NULL, NULL);
+      if (result == CLIENT_SUCCESS) {
+        printf("<: %s\n", response);
+        break;
+      } else if (result == CLIENT_BUFFER_TOO_SMALL) {
+        printf("Response too large for bufer\n");
+        break;
+      } else if (result == CLIENT_NOT_OURS) {
+        continue;
+      } else {
+        fprintf(stderr, "Response receive failed : %d\n", result);
+        break;
+      }
     }
   }
 
 cleanup:
-  plugin.disconnect(session);
+  close(session->sockfd);
+  free(session);
   unload_plugins(handle);
   exit(EXIT_SUCCESS);
 }
