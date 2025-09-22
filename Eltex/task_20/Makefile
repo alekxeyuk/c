@@ -1,4 +1,5 @@
 obj-m += first.o
+obj-m += second.o
 KERNEL_V := $(shell uname -r)
 
 PWD := $(CURDIR)
