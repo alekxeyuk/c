@@ -2,9 +2,10 @@
 #define MAIN_H_
 
 #include "driver.h"
-#include "utils.h"
+#include "command.h"
 
 #define EVENTS_SIZE 100
+#define BUF_SIZE 200
 
 static command_handler_t cmd_table[] = {
     {CMD_CREATE_DRIVER, 0, handle_create_driver},

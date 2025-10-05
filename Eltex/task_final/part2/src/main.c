@@ -3,6 +3,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -13,14 +14,10 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "utils.h"
 
-int main(int argc, char* argv[]) {
-  (void)argc;
-  (void)argv;
-
-  setlocale(LC_ALL, "C.utf8");
-
+static int create_signalfd(void) {
   sigset_t mask;
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
@@ -30,44 +27,36 @@ int main(int argc, char* argv[]) {
   int sfd = signalfd(-1, &mask, 0);
   if (sfd < 0) err(EXIT_FAILURE, "signalfd");
 
-  int tfd = timerfd_create(CLOCK_REALTIME, 0);
-  if (tfd < 0) err(EXIT_FAILURE, "timerfd_create");
+  return sfd;
+}
 
-  struct itimerspec spec = {
-      .it_value.tv_sec = 100,
-      .it_interval.tv_sec = 100,
-  };
-  if (timerfd_settime(tfd, 0, &spec, NULL) < 0)
-    err(EXIT_FAILURE, "timer_settime");
+static int create_pipe(void) {
+  int drivers_pipe[2];  // drivers -> parent
+  if (pipe2(drivers_pipe, O_NONBLOCK) == -1) {
+    err(EXIT_FAILURE, "pipe2");
+  }
+  register_pipe(drivers_pipe[1]);
+  return drivers_pipe[0];
+}
 
-  char buffer[200];
+int main(int argc, char* argv[]) {
+  (void)argc;
+  (void)argv;
+
+  setlocale(LC_ALL, "C.utf8");
+
+  int sfd = create_signalfd();
+  int read_pipe = create_pipe();
+
+  char buffer[BUF_SIZE];
   struct epoll_event events[EVENTS_SIZE];
   int epfd = epoll_create1(0);
 
-  struct epoll_event event = {
-      .events = EPOLLIN,
-      .data.fd = STDIN_FILENO,
-  };
+  if (add_to_epoll(epfd, STDIN_FILENO) != 0) err(EXIT_FAILURE, "epoll_ctl");
+  if (add_to_epoll(epfd, sfd) != 0) err(EXIT_FAILURE, "epoll_ctl");
+  if (add_to_epoll(epfd, read_pipe) != 0) err(EXIT_FAILURE, "epoll_ctl");
 
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, STDIN_FILENO, &event) != 0) {
-    perror("epoll_ctl");
-    exit(EXIT_FAILURE);
-  }
-
-  event.data.fd = sfd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sfd, &event) != 0) {
-    perror("epoll_ctl");
-    exit(EXIT_FAILURE);
-  }
-
-  event.data.fd = tfd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, tfd, &event) != 0) {
-    perror("epoll_ctl");
-    exit(EXIT_FAILURE);
-  }
-
-  int working = 1;
-  while (working) {
+  while (true) {
     int ready = 0;
     if ((ready = epoll_wait(epfd, events, EVENTS_SIZE, -1)) < 0) {
       if (errno == EINTR) continue;
@@ -77,9 +66,8 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < ready; i++) {
       if (events[i].data.fd == STDIN_FILENO) {
-        if (fgets(buffer, 200, stdin) == NULL) goto STOP;
+        if (fgets(buffer, BUF_SIZE, stdin) == NULL) goto STOP;
         buffer[strcspn(buffer, "\n")] = '\0';
-        printf("{read from stdin} [%s]\n", buffer);
         handle_input(buffer, cmd_table, CMD_TABLE_SIZE);
       }
       if (events[i].data.fd == sfd) {
@@ -100,11 +88,19 @@ int main(int argc, char* argv[]) {
             break;
         }
       }
-      if (events[i].data.fd == tfd) {
-        uint64_t numExp;
-        ssize_t s = read(tfd, &numExp, sizeof(uint64_t));
-        if (s != sizeof(uint64_t)) err(EXIT_FAILURE, "read");
-        printf("[Timer shot] %lu\n", numExp);
+      if (events[i].data.fd == read_pipe) {
+        ssize_t bytes_read =
+            read(events[i].data.fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+          buffer[bytes_read] = '\0';
+          if (strncmp(buffer, MSG_AVAILABLE, strlen(MSG_AVAILABLE)) == 0) {
+            pid_t pid;
+            satou(buffer + strlen(MSG_AVAILABLE), &pid);
+            update_driver_state(pid, DRIVER_AVAILABLE, 0);
+          } else {
+            printf("%s\n", buffer);
+          }
+        }
       }
     }
   }
@@ -112,6 +108,7 @@ int main(int argc, char* argv[]) {
 STOP:
   close(epfd);
   close(sfd);
-  close(tfd);
+  close(read_pipe);
+  kill_drivers();
   return EXIT_SUCCESS;
 }

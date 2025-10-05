@@ -14,7 +14,7 @@ SRC_DIR = src
 BIN_DIR = bin
 
 # Source files
-EPOLL_SRC = main.c utils.c driver.c
+EPOLL_SRC = main.c utils.c driver.c command.c
 
 # Object files
 EPOLL_OBJS    = $(addprefix $(SRC_DIR)/, $(EPOLL_SRC:.c=.o))
