@@ -76,7 +76,7 @@ static void driver_loop(int pipe_read, int pipe_write) {
         read(tfd, &numExp, sizeof(uint64_t));
         state = DRIVER_AVAILABLE;
         timer = 0;
-        dprintf(pipe_write, "%s %d", MSG_AVAILABLE, pid);
+        dprintf(pipe_write, "%s %d\n", MSG_AVAILABLE, pid);
       }
       if (events[i].data.fd == pipe_read) {
         bytes_read = read(pipe_read, buffer, sizeof(buffer) - 1);
@@ -87,11 +87,11 @@ static void driver_loop(int pipe_read, int pipe_write) {
             if (state == DRIVER_BUSY) {
               dprintf(pipe_write, "PID %d: %s  %d", pid, MSG_BUSY, timer);
             } else {
-              dprintf(pipe_write, "PID %d: %s", pid, MSG_AVAILABLE);
+              dprintf(pipe_write, "PID %d: %s\n", pid, MSG_AVAILABLE);
             }
           } else if (strncmp(buffer, MSG_TASK, strlen(MSG_TASK)) == 0) {
             if (state != DRIVER_AVAILABLE) {
-              dprintf(pipe_write, "PID %d: %s  %d", pid, MSG_BUSY, timer);
+              dprintf(pipe_write, "PID %d: %s  %d\n", pid, MSG_BUSY, timer);
               continue;
             }
 

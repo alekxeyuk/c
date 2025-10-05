@@ -93,12 +93,16 @@ int main(int argc, char* argv[]) {
             read(events[i].data.fd, buffer, sizeof(buffer) - 1);
         if (bytes_read > 0) {
           buffer[bytes_read] = '\0';
-          if (strncmp(buffer, MSG_AVAILABLE, strlen(MSG_AVAILABLE)) == 0) {
-            pid_t pid;
-            satou(buffer + strlen(MSG_AVAILABLE), &pid);
-            update_driver_state(pid, DRIVER_AVAILABLE, 0);
-          } else {
-            printf("%s\n", buffer);
+          char* msg = strtok(buffer, "\n");
+          while (msg != NULL) {
+            if (strncmp(msg, MSG_AVAILABLE, strlen(MSG_AVAILABLE)) == 0) {
+              pid_t pid;
+              satou(msg + strlen(MSG_AVAILABLE), &pid);
+              update_driver_state(pid, DRIVER_AVAILABLE, 0);
+            } else {
+              printf("%s\n", msg);
+            }
+            msg = strtok(NULL, "\n");
           }
         }
       }
