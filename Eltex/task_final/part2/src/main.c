@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
+#include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 
@@ -30,13 +31,12 @@ static int create_signalfd(void) {
   return sfd;
 }
 
-static int create_pipe(void) {
-  int drivers_pipe[2];  // drivers -> parent
-  if (pipe2(drivers_pipe, O_NONBLOCK) == -1) {
-    err(EXIT_FAILURE, "pipe2");
-  }
-  register_pipe(drivers_pipe[1]);
-  return drivers_pipe[0];
+static int create_socket(void) {
+  int sv[2];
+  if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) < 0)
+    err(EXIT_FAILURE, "socketpair");
+  register_socket(sv[1]);
+  return sv[0];
 }
 
 int main(int argc, char* argv[]) {
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
   setlocale(LC_ALL, "C.utf8");
 
   int sfd = create_signalfd();
-  int read_pipe = create_pipe();
+  int read_socket = create_socket();
 
   char buffer[BUF_SIZE];
   struct epoll_event events[EVENTS_SIZE];
@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
 
   if (add_to_epoll(epfd, STDIN_FILENO) != 0) err(EXIT_FAILURE, "epoll_ctl");
   if (add_to_epoll(epfd, sfd) != 0) err(EXIT_FAILURE, "epoll_ctl");
-  if (add_to_epoll(epfd, read_pipe) != 0) err(EXIT_FAILURE, "epoll_ctl");
+  if (add_to_epoll(epfd, read_socket) != 0) err(EXIT_FAILURE, "epoll_ctl");
 
   while (true) {
     int ready = 0;
@@ -88,21 +88,18 @@ int main(int argc, char* argv[]) {
             break;
         }
       }
-      if (events[i].data.fd == read_pipe) {
-        ssize_t bytes_read =
-            read(events[i].data.fd, buffer, sizeof(buffer) - 1);
-        if (bytes_read > 0) {
-          buffer[bytes_read] = '\0';
-          char* msg = strtok(buffer, "\n");
-          while (msg != NULL) {
-            if (strncmp(msg, MSG_AVAILABLE, strlen(MSG_AVAILABLE)) == 0) {
-              pid_t pid;
-              satou(msg + strlen(MSG_AVAILABLE), &pid);
-              update_driver_state(pid, DRIVER_AVAILABLE, 0);
+      if (events[i].data.fd == read_socket) {
+        state_update_t state;
+        ssize_t bytes_read = read(events[i].data.fd, &state, sizeof(state));
+        if (bytes_read == sizeof(state)) {
+          if (state.update) {
+            update_driver_state(state.pid, state.state, state.timer);
+          } else {
+            if (state.state == DRIVER_AVAILABLE) {
+              printf("PID %d: %s\n", state.pid, MSG_AVAILABLE);
             } else {
-              printf("%s\n", msg);
+              printf("PID %d: %s %d\n", state.pid, MSG_BUSY, state.timer);
             }
-            msg = strtok(NULL, "\n");
           }
         }
       }
@@ -112,7 +109,7 @@ int main(int argc, char* argv[]) {
 STOP:
   close(epfd);
   close(sfd);
-  close(read_pipe);
+  close(read_socket);
   kill_drivers();
   return EXIT_SUCCESS;
 }

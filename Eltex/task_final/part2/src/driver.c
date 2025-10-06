@@ -16,20 +16,19 @@
 
 static driver_t drivers[MAX_DRIVERS];
 static int driver_count = 0;
-static int parent_pipe = -1;
+static int parent_socket = -1;
 
-bool register_pipe(int pipe) {
-  if (parent_pipe != -1) return false;
-  parent_pipe = pipe;
+bool register_socket(int socket) {
+  if (parent_socket != -1) return false;
+  parent_socket = socket;
   return true;
 }
 
-static void add_driver(pid_t pid, int pipe_to, int pipe_from) {
+static void add_driver(pid_t pid, int pipe_to) {
   drivers[driver_count].pid = pid;
   drivers[driver_count].state = DRIVER_AVAILABLE;
   drivers[driver_count].timer = 0;
   drivers[driver_count].pipe_to = pipe_to;
-  drivers[driver_count].pipe_from = pipe_from;
   driver_count++;
 }
 
@@ -45,9 +44,12 @@ static driver_t* find_driver(pid_t pid) {
 static void driver_loop(int pipe_read, int pipe_write) {
   char buffer[PIPE_BUF_SIZE];
   ssize_t bytes_read;
-  pid_t pid = getpid();
-  driver_state_t state = DRIVER_AVAILABLE;
-  int timer;
+  state_update_t state = {
+      .pid = getpid(),
+      .state = DRIVER_AVAILABLE,
+      .timer = 0,
+      .update = false,
+  };
 
   struct epoll_event events[DEVENTS_SIZE];
   int epfd = epoll_create1(0);
@@ -74,9 +76,10 @@ static void driver_loop(int pipe_read, int pipe_write) {
       if (events[i].data.fd == tfd) {
         uint64_t numExp;
         read(tfd, &numExp, sizeof(uint64_t));
-        state = DRIVER_AVAILABLE;
-        timer = 0;
-        dprintf(pipe_write, "%s %d\n", MSG_AVAILABLE, pid);
+        state.state = DRIVER_AVAILABLE;
+        state.timer = 0;
+        state.update = true;
+        write(pipe_write, &state, sizeof(state));
       }
       if (events[i].data.fd == pipe_read) {
         bytes_read = read(pipe_read, buffer, sizeof(buffer) - 1);
@@ -84,21 +87,21 @@ static void driver_loop(int pipe_read, int pipe_write) {
           buffer[bytes_read] = '\0';
 
           if (strcmp(buffer, MSG_STATUS) == 0) {
-            if (state == DRIVER_BUSY) {
-              dprintf(pipe_write, "PID %d: %s  %d", pid, MSG_BUSY, timer);
-            } else {
-              dprintf(pipe_write, "PID %d: %s\n", pid, MSG_AVAILABLE);
-            }
+            state.update = false;
+            write(pipe_write, &state, sizeof(state));
           } else if (strncmp(buffer, MSG_TASK, strlen(MSG_TASK)) == 0) {
-            if (state != DRIVER_AVAILABLE) {
-              dprintf(pipe_write, "PID %d: %s  %d\n", pid, MSG_BUSY, timer);
+            if (state.state != DRIVER_AVAILABLE) {
+              state.update = false;
+              write(pipe_write, &state, sizeof(state));
               continue;
             }
 
-            satou(buffer + 5, &timer);
-            state = DRIVER_BUSY;
-            spec.it_value.tv_sec = timer;
+            satou(buffer + 5, &state.timer);
+            state.state = DRIVER_BUSY;
+            state.update = true;
+            spec.it_value.tv_sec = state.timer;
             timerfd_settime(tfd, 0, &spec, NULL);
+            write(pipe_write, &state, sizeof(state));
           }
         }
       }
@@ -132,11 +135,11 @@ bool handle_create_driver(int argc, int argv[]) {
   if (pid == 0) {
     // driver
     close(pipe_to[1]);
-    driver_loop(pipe_to[0], parent_pipe);
+    driver_loop(pipe_to[0], parent_socket);
   } else {
     // parent
     close(pipe_to[0]);
-    add_driver(pid, pipe_to[1], parent_pipe);
+    add_driver(pid, pipe_to[1]);
     printf("Created driver with PID %d\n", pid);
   }
 
@@ -154,10 +157,6 @@ bool handle_send_task(int argc, int argv[]) {
   if (!driver) {
     printf("%s: %d\n", ERR_DRIVER_NOT_FOUND, pid);
     return false;
-  }
-
-  if (driver->state != DRIVER_BUSY) {
-    update_driver_state(pid, DRIVER_BUSY, timer);
   }
 
   char command[PIPE_BUF_SIZE];

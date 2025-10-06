@@ -11,7 +11,6 @@ typedef struct {
   driver_state_t state;
   int timer;
   int pipe_to;
-  int pipe_from;
 } driver_t;
 
 #define PIPE_BUF_SIZE 64
@@ -29,7 +28,7 @@ typedef struct {
 #define MSG_BUSY "BUSY"
 #define MSG_AVAILABLE "AVAILABLE"
 
-bool register_pipe(int pipe);
+bool register_socket(int socket);
 bool handle_create_driver(int argc, int argv[]);
 bool handle_send_task(int argc, int argv[]);
 bool handle_get_status(int argc, int argv[]);

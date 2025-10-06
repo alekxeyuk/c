@@ -1,8 +1,8 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include "driver.h"
 #include "command.h"
+#include "driver.h"
 
 #define EVENTS_SIZE 100
 #define BUF_SIZE 200

@@ -2,9 +2,9 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <sys/epoll.h>
-#include <inttypes.h>
 
 bool satou(const char* s, int* out) {
   errno = 0;
