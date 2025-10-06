@@ -1,13 +1,14 @@
+#define _GNU_SOURCE
 #include "helper.h"
 
-void *load_plugin(const char *name, operations_t *op_handle) {
-  void *handle = dlopen(name, RTLD_LAZY);
+void* load_plugin(const char* name, operations_t* op_handle) {
+  void* handle = dlopen(name, RTLD_LAZY);
   if (!handle) {
     fprintf(stderr, "dlopen(%s) failed: %s\n", name, dlerror());
     return NULL;
   }
 
-  const operations_t *ops = (operations_t *)dlsym(handle, "export");
+  const operations_t* ops = (operations_t*)dlsym(handle, "export");
   if (!ops) {
     fprintf(stderr, "dlsym(operations) failed: %s\n", dlerror());
     dlclose(handle);
@@ -19,13 +20,13 @@ void *load_plugin(const char *name, operations_t *op_handle) {
   return handle;
 }
 
-void unload_plugins(void *handle) {
+void unload_plugins(void* handle) {
   printf("Unloading plugin...\n");
   dlclose(handle);
 }
 
-void parse_args(int argc, char *argv[], char **dest_ip, uint16_t *dest_port, uint16_t *from_port,
-                const char **if_name) {
+void parse_args(int argc, char* argv[], char** dest_ip, uint16_t* dest_port,
+                uint16_t* from_port, const char** if_name) {
   int opt;
 
   while ((opt = getopt(argc, argv, "d:p:f:i:h")) != -1) {
@@ -49,13 +50,16 @@ void parse_args(int argc, char *argv[], char **dest_ip, uint16_t *dest_port, uin
         *if_name = optarg;
         break;
       case 'h':
-        fprintf(stderr, "Usage: %s [-d destination_ip] [-p destination_port] [-f from_port] [-i interface]\n", argv[0]);
+        fprintf(stderr,
+                "Usage: %s [-d destination_ip] [-p destination_port] [-f "
+                "from_port] [-i interface]\n",
+                argv[0]);
         exit(EXIT_SUCCESS);
     }
   }
 }
 
-size_t read_line(char *buffer, int size) {
+size_t read_line(char* buffer, int size) {
   printf(":> ");
   if (fgets(buffer, size, stdin) == NULL) {
     return 0;
@@ -66,4 +70,25 @@ size_t read_line(char *buffer, int size) {
     --len;
   }
   return len;
+}
+
+int add_to_epoll(int epoll_fd, int fd) {
+  struct epoll_event event;
+  event.events = EPOLLIN;
+  event.data.fd = fd;
+  return epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event);
+}
+
+int create_signalfd(void) {
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGTERM);
+
+  if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) err(EXIT_FAILURE, "sigprocmask");
+  int sfd = signalfd(-1, &mask, 0);
+  if (sfd < 0) err(EXIT_FAILURE, "signalfd");
+
+  return sfd;
 }
