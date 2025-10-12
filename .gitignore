@@ -54,3 +54,4 @@ dkms.conf
 # IDE configs
 .vscode
 .vs
+/Eltex/project/torrent_file_creator/out
